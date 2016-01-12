@@ -1,0 +1,20 @@
+---
+title: "STAT540 Class Repository"
+author: "Sam Hinshaw"
+output: 
+  html_document:
+    toc: TRUE
+    toc_depth: 5
+    keep_md: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+```
+
+Welcome to the STAT540 course repository for Sam Hinshaw.   
+
+In this repo you will find my classwork throughout the semester.  I don't have anything here yet, but stay tuned for some exciting analyses!
+
+********
+This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`
