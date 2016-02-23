@@ -8,6 +8,6 @@ Typhoid, or typhoid fever is a global epidemic caused by the bacterium *Salmonel
 The goal of this paper was to conduct a phylogenetic analysis of the MDR typhoid lineage of the *Salmonella enterica* serovar Typhi H58, and to determine its origin and pattern of spread.  
 
 #### Data
-Here, data was subgenomic and whole-genome sequencing of 1,832 different S Typhi samples collected between 1992 to 2013.  A total of five samples were sequenced on PacBio's SMRT platform, allowing for better resolution of plasmid integration into the bacterial chromosome.  
+Here, data was subgenomic and whole-genome sequencing of 1,832 different S Typhi samples collected between 1992 to 2013.  A total of five samples were sequenced on PacBio's SMRT platform, allowing for better resolution of plasmid integration into the bacterial chromosome.  The raw sequence data are available in the European Nucleotide Archive (ENA), under accession identifier [ERP001718](http://www.ebi.ac.uk/ena/data/view/ERP001718).  Most of these files are outputs from Illumina HiSeq machines, with outputs downloadable as FASTQ formats.  
 
 #### 
