@@ -1,0 +1,80 @@
+---
+title: 'Sam Hinshaw Homework for STAT540'
+output: 
+  html_document:
+    toc: TRUE
+    toc_depth: 5
+    keep_md: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Please view the HTML version of this document, not the GitHub rendering of the `.md` file for proper Table of Contents. 
+
+## Setup
+```{r}
+# library(BiocInstaller) # or source("https://bioconductor.org/biocLite.R")
+suppressPackageStartupMessages({
+	library(limma) # biocLite("limma")
+	library(edgeR) # biocLite("edgeR")
+	library(DESeq2) # biocLite("DESeq2")
+	library(dplyr)
+	library(magrittr)
+	library(devtools)
+	library(broom)
+	library(readr)
+})
+```
+
+Let's check our R version & Packages are up-to-date
+We want `R >= 3.2.3`, `limma >= 3.26.7`,  & `edgeR >= 3.12.0`
+```{r}
+devtools::session_info()
+```
+
+## Data Inspection
+
+### Download & Import Data
+
+For this, I am using a makefile to avoid downloading the datasets more than once. 
+See external file in this directory, `Makefile`. The contents are pasted below:
+```
+all: homework.html
+
+clean: 
+	rm -rf data.txt.gz design.txt SamHinshawHomework.md SamHinshawHomework.html
+	sed -i '/data.txt.gz/d' ../.gitignore
+	sed -i '/design.txt/d' ../.gitignore
+
+data.txt: 
+	curl -o data.txt.gz 'http://stat540-ubc.github.io/homework/assignment/homework_data/NHBE_transcriptome_data.txt.gz?raw=true'
+
+design.txt: 
+	curl -o design.txt 'http://stat540-ubc.github.io/homework/assignment/homework_data/NHBE_design.txt?raw=true'
+
+gitignore: 
+	grep -q -F 'data.txt.gz' ../.gitignore || echo 'data.txt.gz' >> ../.gitignore
+	grep -q -F 'design.txt' ../.gitignore || echo 'design.txt' >> ../.gitignore
+
+homework.html:  SamHinshawHomework.Rmd data.txt design.txt gitignore
+	Rscript -e "rmarkdown::render('SamHinshawHomework.Rmd')"
+```
+Now to Import
+```{r}
+data <- read_delim("data.txt", delim = "\t")
+```
+
+Huh, thanks to `readr`, we're getting an error. Something is wrong with our column count. Let's head to the next step and figure out how to handle this error.  
+
+### Inspect Data
+```{r}
+class(data) # First let's make sure this is expected. We should have a data.frame, specifically a tbl_df. 
+str(data) # Huh, it looks like we may have an error with our header, as we've got probe IDs labeled as a sample. 
+```
+
+Could this be an artifact of the compression? Let's try something else real quick. 
+
+********
+This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`

@@ -2,3 +2,6 @@
 .Rhistory
 .RData
 *.pdf
+
+data.txt.gz
+design.txt
