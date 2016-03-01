@@ -1,0 +1,3 @@
+Loess (MA Plot) to two-color array only
+Assumption is that you're split evenly on average. 
+Can use PCA to correlated confounding factors & see 

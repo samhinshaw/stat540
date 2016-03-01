@@ -1,0 +1,84 @@
+going from data to model (versus model to data) requires LOTS of assumptions & simplifications... which makes sense. relies on basic assumptions
+For example, with random sampling, you are trying to make generalizations on a whole populations with statistical inference.  
+If you can make the IID (indeoendent identically distributed) assumption, the math becomes much easier!! 
+Toss a fair coin 10 times, what's the prob of at least one heads? Very high. 
+Just calculate 1-prob(not getting it) 0.5^10 (the complement probability)
+IF you needed at least 2, then it'd be 1-(0.5^10)-(0.5^9)
+As you increase n, you're basically fixing your probability (of getting at least one head, not matter how small the probability) to 1.  This illustrates the problem with false positives in biology, as n is always so large
+
+Review cumulative distribution function <- watch some online lectures
+Bernoulli dist vs binomial dist
+
+CDF to PDF (and vice versa) by integration & differentiation
+Integrate PDF to get CDF (get area under curve to obtain cumulative probability)
+From PMF to CDF you have to sum up values (rather than integration)
+
+parameter space is the set of all possible values for the parameter
+to say we think our data is normally distributed is to make a parameteric inference about the data.
+If we know data is normal, just need mean & variance to plot
+
+also nonparametric or semiparametric models. this just means the parameter space is more complicated (rank based tests like the wilcoxon test)
+
+main parameters of distribution F. expected value (mean) & variance
+
+sample mean is random variable (unknown until we observe data, subject to noise)
+random variable, NOT parameter!
+hat notation means this is a random variable & is subject to noise.
+subscript notation with the hat tells us what sample size this was calculated from
+
+look up defs of random var & parameters again
+
+distribution of sample mean doesn't follow distribution of actual samples
+- actual samples have uniform distribution
+- sample means have gaussian distribution
+This makes sense if you think about it!
+
+without knowing the variance of your data, you can't know how many samples you'd need to make a meaningful conclusion (to have statistical power?)
+if you know your distributon, you can compute the variance--this is a parameter
+sample variance is a random variable, not a parameter
+
+a "statistic" is a random variable that is a FUNCTION of the data
+- sample mean
+- sample variance
+
+somtimes they estimate parameters we care about & can be the basis for a hypothesis test.  any time we talk about an RV, we should think about a distribution for that RV
+
+The Law of Large Numbers: (common sense, really)
+check out the stat540 resources page for "All About Statistics"
+
+Central Limit Theorem:
+READ THROUGH MISCONCEPTIONS IN SLIDES
+
+Further into statistical inference:
+- hypothesis testing
+- parameter estimation
+
+Parameters determine distribution
+the basis of statistical inference is estimating these parameters!
+Estimator: rule/function whose value is used to estimate parameter
+Estimate: a particular "realization" of the estimator
+Types of Estimators:
+- Point Estimate: Single Number! Can be regarded as the most plausible value of parameter
+- Interval Estimate: range of numbers, may contain the true value
+
+3 main approaches for point estimation
+- Methods of Moments
+- Maximum Likelihood Estimation (MLE) - main focus
+- Bayesian Inference
+
+PDF allows us to predict prob based on KNOWN parameters
+with parameters known, we can calulate probability of ANY outcome
+P(data | model)
+theta = model (certain parameters, for example, mean & variance)
+parameters for coin flips may be n & heads chance
+
+differentiate function & set derivative to zero to find maximum
+
+logL = Log(p^5 * (1-p)^6)
+= 5log(p) + 6log(1-p)
+diff:
+[5 * (1/p)] + [6 * (1/1-p)*(-1)]
+= [5/p] - [6/(1-p)] = 0
+p = 0.454
+
+interval estimation is really important though, not just point estimation (i.e. confidence intervals)

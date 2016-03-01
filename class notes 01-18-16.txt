@@ -1,0 +1,43 @@
+Linear Algebra Review
+Data QC
+Outliers
+Microarray data normalization
+Filters
+
+Go over this math again (matrix multiplication, dot & cross products)
+
+column number of first matrix must equal row number of second matrix
+
+redo slide 15 in vector notation
+power calculation! how many samples do you need?
+
+microarray, one color vs two color
+
+detecting and removing outliers (versus possible biological variation). Calculate the distance! One metric is the Mahalanobis Distance.  Could be interesting, but if included would ruin statistical analysis. This cannot be informed by your experimental design
+
+For microarray, could be defect on array or region of array. etc.
+sample bias & confounding factors <- hardest to tell
+    could because of another factor unaddressed in experimental design
+housekeeping genes for microarray? difficult, or not? creatine or creatinine? still some variability attached to this
+
+"spike-in" a known amount of RNA & normalize to that
+
+"global distribution" making two strong statistical assumptions about your data. 
+    - Linear: Mean or median centering
+    - Non-linear: quantile normalization
+Assumption 1: MOST genes shouldn't be differentially expressed, so overall shifts in intensity are assumed to be technical
+Assumption 2: Similar numbers of genes will be upregulated as downregulated, so generating a distribution will have the same mean
+    - I don't think either of these assumptions are any good, #2 definitely doesn't seem true
+MA plots & MA normalization typically based on two-color array data. Look up this!
+
+Loess or spline
+^ two color
+quantile normalization more often used for one color microarrays
+matches distribution of data across different samples
+adjust values across multiple samples
+
+can use quantile on two-color normalization, after per-array normalization has been finished.  
+
+filtering data to remove not expressed genes!
+remove genes with missing values, low expression, or low stdev
+unsupervised!!

@@ -1,0 +1,42 @@
+Basic stats refresher
+Look up these terms:
+• Random variable (RV) and its distribution	
+• IID	
+• Parameters of a distribution	
+• An estimator of a parameter	
+• A parameter space	
+• Null and alternative	hypotheses	
+• The sampling distribution of an estimator	
+• Large sample results for averages	
+
+Random variable: function that maps outcome of expt to a real number...?
+RV = number of heads observed
+capital letters (X,Y) are used to define random variables, whereas their lowercase counterparts are used to represent the outcomes or OBSERVED values
+probability function rather than table of outcomes. probability distribution is a math function for describing possible outcomes
+prob mass function (discrete) & prob density function (continuous)
+Bernoulli dist models outcomes for random var with two outcomes (discrete)
+Binomial dist models binary outcomes
+Uniform distribution
+Gaussian distribution, diff shapes depend on mean & variance
+t-distribution, depends on degrees of freedom
+
+
+Back to prisoner example:
+How many times did we get 7 heads in 10,000 experiments?
+we've got the binomial distribution! and we have the parameters
+answer is approx 1172 out of 10,000
+
+in first example we look at binomial dist guess vs rbinom RNG, = 0.0027
+in second example we look at runif RNG vs rbinom RNG, = 0.0009
+
+much harder to guess experiment given outcomes.  basically have to guess & check model on theoretical vs empirical. make assumptions & check
+
+Hypothesis testing...
+pick an actual question & define null
+then pick test statistic & compute probabilities
+
+IID = independent & identically distributed
+identically distributed = hold same distribution
+independence crucial as well
+B - type II error is (false negative?)
+a - type I error is (false positive?)
