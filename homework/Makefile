@@ -27,3 +27,4 @@ design_fixed: design.txt
 	
 homework:  SamHinshawHomework.Rmd gitignore data_fixed design_fixed
 	Rscript -e "rmarkdown::render('SamHinshawHomework.Rmd')"
+	
