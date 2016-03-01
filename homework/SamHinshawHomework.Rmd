@@ -1,5 +1,6 @@
 ---
-title: 'Sam Hinshaw Homework for STAT540'
+title: 'Homework for STAT540'
+author: 'Sam Hinshaw'
 output: 
   html_document:
     toc: TRUE
@@ -14,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 Please view the HTML version of this document, not the GitHub rendering of the `.md` file for proper Table of Contents. 
 
 ## Setup
-```{r}
+```{r libraries}
 # library(BiocInstaller) # or source("https://bioconductor.org/biocLite.R")
 suppressPackageStartupMessages({
 	library(limma) # biocLite("limma")
@@ -24,13 +25,14 @@ suppressPackageStartupMessages({
 	library(magrittr)
 	library(devtools)
 	library(broom)
+	library(ggplot2)
 	library(readr)
 })
 ```
 
 Let's check our R version & Packages are up-to-date
 We want `R >= 3.2.3`, `limma >= 3.26.7`,  & `edgeR >= 3.12.0`
-```{r}
+```{r session info}
 devtools::session_info()
 ```
 
@@ -41,40 +43,77 @@ devtools::session_info()
 For this, I am using a makefile to avoid downloading the datasets more than once. 
 See external file in this directory, `Makefile`. The contents are pasted below:
 ```
-all: homework.html
+all: homework
 
 clean: 
-	rm -rf data.txt.gz design.txt SamHinshawHomework.md SamHinshawHomework.html
+	rm -rf SamHinshawHomework.md SamHinshawHomework.html data_fixed.txt
 	sed -i '/data.txt.gz/d' ../.gitignore
 	sed -i '/design.txt/d' ../.gitignore
+	sed -i '/data.txt/d' ../.gitignore
+	sed -i '/data_fixed.txt/d' ../.gitignore
 
-data.txt: 
+data: 
 	curl -o data.txt.gz 'http://stat540-ubc.github.io/homework/assignment/homework_data/NHBE_transcriptome_data.txt.gz?raw=true'
+	gunzip -kq data.txt.gz
 
-design.txt: 
+design: 
 	curl -o design.txt 'http://stat540-ubc.github.io/homework/assignment/homework_data/NHBE_design.txt?raw=true'
 
-gitignore: 
+gitignore: data.txt.gz design.txt data.txt
+	grep -q -F 'data.txt' ../.gitignore || echo 'data.txt' >> ../.gitignore
 	grep -q -F 'data.txt.gz' ../.gitignore || echo 'data.txt.gz' >> ../.gitignore
 	grep -q -F 'design.txt' ../.gitignore || echo 'design.txt' >> ../.gitignore
+	grep -q -F 'data_fixed.txt' ../.gitignore || echo 'data_fixed.txt' >> ../.gitignore
 
-homework.html:  SamHinshawHomework.Rmd data.txt design.txt gitignore
+data_fixed: data.txt
+	cp data.txt data_fixed.txt
+	sed -i -e 's/^"GSE10718_Biomat_1"/"probeIDs"	"GSE10718_Biomat_1"/' data_fixed.txt
+	
+homework:  SamHinshawHomework.Rmd gitignore data_fixed
 	Rscript -e "rmarkdown::render('SamHinshawHomework.Rmd')"
 ```
 Now to Import
-```{r}
+```{r read data.txt}
 data <- read_delim("data.txt", delim = "\t")
 ```
 
 Huh, thanks to `readr`, we're getting an error. Something is wrong with our column count. Let's head to the next step and figure out how to handle this error.  
 
 ### Inspect Data
-```{r}
+```{r check data}
 class(data) # First let's make sure this is expected. We should have a data.frame, specifically a tbl_df. 
-str(data) # Huh, it looks like we may have an error with our header, as we've got probe IDs labeled as a sample. 
+glimpse(data)
 ```
 
-Could this be an artifact of the compression? Let's try something else real quick. 
+It looks like we may have an error with our header, as we've got probe IDs labeled as a sample. Could this be an artifact of the compression? Let's try something else real quick. Also, now we know what dataset we're using! GSE10718.
+```{r read data.txt.gz}
+data_method2 <- gzfile("data.txt.gz") %>% read_delim(delim = "\t")
+```
+
+Nope, looks like it's just a problem with the source file. 
+```{r remove data_method2}
+rm(data_method2)
+```
+
+Well, since we're not supposed to edit our souce file, I've copied the file do `data_fixed.txt` and appended `"probeIDs	"` to the beginning of the first line with `sed`.  Now we should be ready to rock!
+```{r read data_fixed.txt}
+data <- read_delim("data_fixed.txt", delim = "\t")
+```
+
+Sweet! No errors. Let's take a closer look.
+```{r check data_fixed}
+glimpse(data)
+```
+
+Looking good. These seem to be log2 transformed microarray intensity values.  How about we examine the metadata and then do a quick intensity plot. 
+```{r import design}
+design <- read_delim("design.txt", delim = "\t")
+```
+
+Ugh, same problem again? C'mon guys. Back to `sed`. 
+```{r}
+
+```
 
 ********
 This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`
