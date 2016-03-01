@@ -1,12 +1,7 @@
 all: homework
 
 clean: 
-	rm -rf SamHinshawHomework.md SamHinshawHomework.html data_fixed.txt
-	sed -i '/data.txt.gz/d' ../.gitignore
-	sed -i '/design.txt/d' ../.gitignore
-	sed -i '/design_fixed.txt/d' ../.gitignore
-	sed -i '/data.txt/d' ../.gitignore
-	sed -i '/data_fixed.txt/d' ../.gitignore
+	rm -rf SamHinshawHomework.md SamHinshawHomework.html data_fixed.txt design_fixed.txt
 
 data: 
 	curl -o data.txt.gz 'http://stat540-ubc.github.io/homework/assignment/homework_data/NHBE_transcriptome_data.txt.gz?raw=true'
