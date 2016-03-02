@@ -30,53 +30,31 @@ suppressPackageStartupMessages({
 	library(knitr)
 	library(xtable)
 	library(pander)
+	library(biomaRt)
+	library(tidyr)
+	library(RColorBrewer)
 })
 ```
 
 Let's check our R version & Packages are up-to-date
 We want `R >= 3.2.3`, `limma >= 3.26.7`,  & `edgeR >= 3.12.0`
 ```{r session info}
-devtools::session_info()
+sessioninfo <- devtools::session_info()
+packages <- sessioninfo$packages
+packages %>% 
+	filter(package %in% c("limma", "edgeR"))
+sessioninfo$platform$version
 ```
+
+Looks good, let's continue
 
 ## Data Inspection
 
 ### Download & Import Data
 
 For this, I am using a makefile to avoid downloading the datasets more than once. 
-See external file in this directory, `Makefile`. The contents are pasted below:
-```
-all: homework
+See [Makefile](./Makefile) in this directory. 
 
-clean: 
-	rm -rf SamHinshawHomework.md SamHinshawHomework.html data_fixed.txt design_fixed.txt
-
-data: 
-	curl -o data.txt.gz 'http://stat540-ubc.github.io/homework/assignment/homework_data/NHBE_transcriptome_data.txt.gz?raw=true'
-	gunzip -kq data.txt.gz
-
-design: 
-	curl -o design.txt 'http://stat540-ubc.github.io/homework/assignment/homework_data/NHBE_design.txt?raw=true'
-
-gitignore: data.txt.gz design.txt data.txt
-	grep -q -F 'data.txt' ../.gitignore || echo 'data.txt' >> ../.gitignore
-	grep -q -F 'data.txt.gz' ../.gitignore || echo 'data.txt.gz' >> ../.gitignore
-	grep -q -F 'design.txt' ../.gitignore || echo 'design.txt' >> ../.gitignore
-	grep -q -F 'design_fixed.txt' ../.gitignore || echo 'design_fixed.txt' >> ../.gitignore
-	grep -q -F 'data_fixed.txt' ../.gitignore || echo 'data_fixed.txt' >> ../.gitignore
-
-data_fixed: data.txt
-	cp data.txt data_fixed.txt
-	sed -i -e 's/^"GSE10718_Biomat_1"/"ProbeID"	"GSE10718_Biomat_1"/' data_fixed.txt
-	
-design_fixed: design.txt
-	cp design.txt design_fixed.txt
-	sed -i -e 's/^"ExternalID"/"InternalID"	"ExternalID"/' design_fixed.txt
-	
-homework:  SamHinshawHomework.Rmd gitignore data_fixed design_fixed
-	Rscript -e "rmarkdown::render('SamHinshawHomework.Rmd')"
-	
-```
 Now to Import
 ```{r read data.txt}
 data <- read_delim("data.txt", delim = "\t")
@@ -118,7 +96,70 @@ design <- read_delim("design.txt", delim = "\t")
 Ugh, same problem again? C'mon guys. Back to `sed`. 
 ```{r}
 design <- read_delim("design_fixed.txt", delim = "\t")
+glimpse(design)
 ```
+
+There we go! So we've got 23 samples. How many different treatment groups, and how many different timepoints?
+```{r}
+design %>% 
+	group_by(Treatment) %>% 
+	tally()
+design %>% 
+	group_by(time) %>% 
+	tally()
+design %>% 
+	group_by(Treatment, time) %>% 
+	tally()
+```
+
+That's a pretty good summary of what's going on, I'd say. Now back to our data file. How many different genes do we have reported?
+```{r}
+nrow(data)
+```
+
+22,737 probes.  Do we know any microarrays that have exactly that many genes?  Fortunately, we don't need to wonder. [This study, GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718) used [GPL570](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL570), the well known Affymetrix HG U133+ 2.0 Array. Later we can use biomaRt to convert our probeIDs to ensembl IDs (or another equivalent), given the platform information. 
+
+However, for now we can just plot some intensity distributions. To help our plot colors out, we can convert our Treatment and time variables to factors
+```{r}
+design$Treatment <- as.factor(design$Treatment)
+design$time <- as.factor(design$time)
+```
+
+Now we can `gather()` our data for easy plotting, and even join our design data as well. 
+```{r}
+gathered_data <- data %>% 
+	gather("InternalID", "intensity", 2:24)
+glimpse(gathered_data)
+gathered_data <- inner_join(gathered_data, design, by = "InternalID")
+glimpse(gathered_data)
+```
+
+Before we plot, let's set up our color palette.
+```{r}
+display.brewer.all()
+timepoints <- brewer.pal(4, "Set1")
+names(timepoints) <- unique(design$time)
+treatments <- c("#7FC97F", "#FDC086")
+names(treatments) <- unique(design$Treatment)
+```
+
+And now, the plot.  First with time-coding...
+```{r intensity plot}
+p <- ggplot(gathered_data, aes(x = intensity))
+p + geom_density(aes(fill = time)) + 
+	scale_fill_manual(values = timepoints) + xlab("log2 intensity") + ylab("Frequency") + 
+	facet_wrap( ~ InternalID, ncol = 5) + ggtitle("Log2 Intensities of Samples in GSE10718")
+```
+
+...and next with treatment coding.
+```{r}
+p <- ggplot(gathered_data, aes(x = intensity))
+p + geom_density(aes(fill = Treatment)) + 
+	scale_fill_manual(values = treatments) + xlab("log2 intensity") + ylab("Frequency") + 
+	facet_wrap( ~ InternalID, ncol = 5) + ggtitle("Log2 Intensities of Samples in GSE10718")
+```
+
+Good for now!  I'll continue later. 
 
 ********
 This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`
