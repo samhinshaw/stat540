@@ -21,16 +21,17 @@ suppressPackageStartupMessages({
 	library(limma) # biocLite("limma")
 	library(edgeR) # biocLite("edgeR")
 	library(DESeq2) # biocLite("DESeq2")
+	library(biomaRt)
 	library(dplyr)
 	library(magrittr)
 	library(devtools)
 	library(broom)
 	library(ggplot2)
+	library(reshape2)
 	library(readr)
 	library(knitr)
 	library(xtable)
 	library(pander)
-	library(biomaRt)
 	library(tidyr)
 	library(RColorBrewer)
 })
@@ -89,7 +90,7 @@ homework:  SamHinshawHomework.Rmd gitignore data_fixed design_fixed
 
 ## Experimental Design
 
-Before we do anything, let's see what's what in our experiment  
+Before we do anything, let's see what's what in our experiment, [GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718)
 <blockquote>
 Gene expression patterns were assessed in normal human bronchial epithelial (NHBE) cells exposed to cigarette smoke (CS) from a typical "full flavor" American brand of cigarettes in order to develop a better understanding of the genomic impact of tobacco exposure, which can ultimately define biomarkers that discriminate tobacco-related effects and outcomes in a clinical setting. NHBE cells were treated with CS for 15 minutes and alterations to the transcriptome assessed at 1,2,4 and 24 hours post-CS-exposure using high-density oligonucleotide microarrays.
 </blockquote>
@@ -135,7 +136,7 @@ design <- read_delim("design.txt", delim = "\t")
 ```
 
 Ugh, same problem again? C'mon guys. Back to `sed`. 
-```{r}
+```{r import design fixed}
 design <- read_delim("design_fixed.txt", delim = "\t")
 glimpse(design)
 ```
@@ -143,7 +144,7 @@ glimpse(design)
 ### Inspect Data
 
 There we go! So we've got 23 samples. How many different treatment groups, and how many different timepoints?
-```{r}
+```{r tally}
 design %>% 
 	group_by(Treatment) %>% 
 	tally()
@@ -156,31 +157,47 @@ design %>%
 ```
 
 That's a pretty good summary of what's going on, I'd say. Now back to our data file. How many different genes do we have reported?
-```{r}
+```{r check number of probes}
 nrow(data)
 ```
 
-22,737 probes.  Do we know any microarrays that have exactly that many genes?  Fortunately, we don't need to wonder. [This study, GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718) used [GPL570](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL570), the well known Affymetrix HG U133+ 2.0 Array. Later we can use biomaRt to convert our probeIDs to ensembl IDs (or another equivalent), given the platform information. 
+22,737 probes.  Do we know any microarrays that have exactly that many genes?  Fortunately, we don't need to wonder. This study, [GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718) used [GPL570](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL570), the well known Affymetrix HG U133+ 2.0 Array. Later we can use biomaRt to convert our probeIDs to ensembl IDs (or another equivalent), given the platform information. 
 
 ## Basic Data Manipulation
 Before we continue, let's create a new column in our dataset that holds our time post-treatment as hours.
 
-```{r}
+```{r add hours column}
 design %<>% 
 	mutate(hours = gsub("\\_h$","", time) %>% as.numeric())
+glimpse(design)
 ```
 
 
 ## Basic Graphing
 
-However, for now we can just plot some intensity distributions. To help our plot colors out, we can convert our Treatment and time variables to factors
-```{r}
+However, for now we can just plot some intensity distributions. To help our plot colors out, we can convert our Treatment and time variables to factors. This is more for my own benefit (to see intensity distributions) than it is to follow the homework to the letter. Homework progress will continue below. 
+```{r create factors}
 design$Treatment <- as.factor(design$Treatment)
 design$time <- as.factor(design$time)
 ```
 
+### Intensity Distributions
+
+Let's get biomaRt out of the way so we can move on.  
+```{r biomaRt, cache = TRUE}
+ensembl <- useMart("ensembl") # set up biomaRt to use the ensembl database
+datasets <- listDatasets(ensembl) # store our datasets so we can see which to use
+ensembl <- useDataset("hsapiens_gene_ensembl", mart = ensembl) # use the human data set!
+filters <- listFilters(ensembl) # find what filters we can use and cross fingers that it's here
+attributes <- listAttributes(ensembl) # ditto with the attributes
+affy_probe_IDs <- getBM(attributes = c("ensembl_gene_id", "affy_hg_u133_plus_2"), filters = "affy_hg_u133_plus_2", values = data$ProbeID, mart = ensembl) # query the probeIDs
+head(affy_probe_IDs)
+colnames(affy_probe_IDs) <- c("ensembl_gene_id", "ProbeID")
+data <- inner_join(data, affy_probe_IDs, by = "ProbeID")
+glimpse(data)
+```
 Now we can `gather()` our data for easy plotting, and even join our design data as well. 
-```{r}
+```{r gather data}
 gathered_data <- data %>% 
 	gather("InternalID", "intensity", 2:24)
 glimpse(gathered_data)
@@ -189,7 +206,7 @@ glimpse(gathered_data)
 ```
 
 Before we plot, let's set up our color palette.
-```{r}
+```{r color palette 1}
 display.brewer.all()
 timepoints <- brewer.pal(4, "Set1")
 names(timepoints) <- unique(design$time)
@@ -198,22 +215,124 @@ names(treatments) <- unique(design$Treatment)
 ```
 
 And now, the plot.  First with time-coding...
-```{r intensity plot}
+```{r intensity plot faceted time-coded}
 p <- ggplot(gathered_data, aes(x = intensity))
 p + geom_density(aes(fill = time)) + 
 	scale_fill_manual(values = timepoints) + xlab("log2 intensity") + ylab("Frequency") + 
 	facet_wrap( ~ InternalID, ncol = 5) + ggtitle("Log2 Intensities of Samples in GSE10718")
 ```
 
-...and next with treatment coding.
-```{r}
+...and then with treatment coding.
+```{r intensity plot faceted Treatment-coded}
 p <- ggplot(gathered_data, aes(x = intensity))
 p + geom_density(aes(fill = Treatment)) + 
 	scale_fill_manual(values = treatments) + xlab("log2 intensity") + ylab("Frequency") + 
 	facet_wrap( ~ InternalID, ncol = 5) + ggtitle("Log2 Intensities of Samples in GSE10718")
 ```
 
-Good for now!  I'll continue later. 
+### Single Probe Intensity
+
+As per the homework, let's plot the gene expression data for a single probe. Let's pick one at pseudo-random!
+```{r pick probe}
+set.seed(20)
+data[sample(nrow(data), 1), 1:6] %>% kable("markdown")
+singleprobe <- gathered_data %>% 
+	filter(ProbeID == "231836_at")
+```
+
+```{r plot single probe}
+ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) + 
+	geom_bar(stat = "identity") +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+```
+
+Okay, so we see we've got pretty similar intensities throughout the samples.  But let's group them anyways! First by treatment.
+```{r plot single probe treatments}
+ggplot(data = singleprobe, aes(y = intensity, x = Treatment)) + 
+	geom_bar(stat = "identity", width = 0.5) +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+```
+
+...then by time
+```{r plot single probe times}
+ggplot(data = singleprobe, aes(y = intensity, x = time)) + 
+	geom_bar(stat = "identity", width = 0.5) +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+```
+Ah-hah! That's rather interesting...
+Let's do all permutations of combinations. 
+```{r permutations}
+gathered_data %<>% mutate(perm = paste(as.character(Treatment), as.character(time), sep = "_"))
+singleprobe <- gathered_data %>% 
+	filter(ProbeID == "231836_at")
+```
+
+And now to plot...
+```{r plot single probe perms}
+ggplot(data = singleprobe, aes(y = intensity, x = perm)) + 
+	geom_bar(stat = "identity", width = 0.5) +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+```
+
+Note that instead of creating new groups to chart, we could have simply color-coded the original bar chart. For example, using varying intensities of colors for time and complementary colors for the treatment. 
+```{r color palette 2}
+smoke.colors <- brewer.pal(4, "Reds")
+control.colors <- brewer.pal(4, "Blues")
+names(smoke.colors) <- c("cigarette_smoke_1_h", "cigarette_smoke_2_h", "cigarette_smoke_4_h", "cigarette_smoke_24_h")
+names(control.colors) <- c("control_1_h", "control_2_h", "control_4_h", "control_24_h")
+perm_palette <- c(control.colors, smoke.colors)
+```
+
+```{r reorder factors to make legend pretty}
+singleprobe %<>% 
+    mutate(IDnum = gsub("^GSM","", ExternalID) %>% as.numeric())
+singleprobe$perm <- as.factor(singleprobe$perm)
+singleprobe %<>% 
+    mutate(perm = reorder(perm, IDnum, max))
+```
+
+```{r plot color coded}
+ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) + 
+	geom_bar(stat = "identity", aes(fill = perm)) +
+	scale_fill_manual(values = perm_palette) + labs(fill = "Conditions") +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+```
+
+# Assessing Data Quality
+
+Moving on, let's start looking at our data quality, not just visualizing it. 
+## Heatmaps
+
+```{r}
+datacor <- data %>% 
+	dplyr::select(-ensembl_gene_id, -ProbeID) %>% 
+	cor()
+melted_corr <- melt(datacor) %>% tbl_df()
+head(melted_corr)
+```
+
+Let's try reordering these factors with `arrange()` to reveal discrepancies. 
+```{r}
+colnames(melted_corr) <- c("InternalID", "Var2", "value")
+joined_corr <- melted_corr %>% 
+	inner_join(design, by = "InternalID")
+by_time <- joined_corr %>% 
+	arrange(hours) %>% 
+	group_by(hours) %>% 
+	do(arrange(., Treatment))
+by_treatment <- joined_corr %>% 
+	arrange(Treatment) %>% 
+	group_by(Treatment) %>% 
+	do(arrange(., time))
+```
+
+
+Now to plot!
+```{r}
+ggplot(joined_corr, aes(x = InternalID, y = Var2, fill = value)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+```
 
 ********
 This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`

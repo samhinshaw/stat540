@@ -13,16 +13,17 @@ suppressPackageStartupMessages({
 	library(limma) # biocLite("limma")
 	library(edgeR) # biocLite("edgeR")
 	library(DESeq2) # biocLite("DESeq2")
+	library(biomaRt)
 	library(dplyr)
 	library(magrittr)
 	library(devtools)
 	library(broom)
 	library(ggplot2)
+	library(reshape2)
 	library(readr)
 	library(knitr)
 	library(xtable)
 	library(pander)
-	library(biomaRt)
 	library(tidyr)
 	library(RColorBrewer)
 })
@@ -95,7 +96,7 @@ homework:  SamHinshawHomework.Rmd gitignore data_fixed design_fixed
 
 ## Experimental Design
 
-Before we do anything, let's see what's what in our experiment  
+Before we do anything, let's see what's what in our experiment, [GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718)
 <blockquote>
 Gene expression patterns were assessed in normal human bronchial epithelial (NHBE) cells exposed to cigarette smoke (CS) from a typical "full flavor" American brand of cigarettes in order to develop a better understanding of the genomic impact of tobacco exposure, which can ultimately define biomarkers that discriminate tobacco-related effects and outcomes in a clinical setting. NHBE cells were treated with CS for 15 minutes and alterations to the transcriptome assessed at 1,2,4 and 24 hours post-CS-exposure using high-density oligonucleotide microarrays.
 </blockquote>
@@ -331,7 +332,7 @@ nrow(data)
 ## [1] 22737
 ```
 
-22,737 probes.  Do we know any microarrays that have exactly that many genes?  Fortunately, we don't need to wonder. [This study, GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718) used [GPL570](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL570), the well known Affymetrix HG U133+ 2.0 Array. Later we can use biomaRt to convert our probeIDs to ensembl IDs (or another equivalent), given the platform information. 
+22,737 probes.  Do we know any microarrays that have exactly that many genes?  Fortunately, we don't need to wonder. This study, [GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718) used [GPL570](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL570), the well known Affymetrix HG U133+ 2.0 Array. Later we can use biomaRt to convert our probeIDs to ensembl IDs (or another equivalent), given the platform information. 
 
 ## Basic Data Manipulation
 Before we continue, let's create a new column in our dataset that holds our time post-treatment as hours.
@@ -340,18 +341,88 @@ Before we continue, let's create a new column in our dataset that holds our time
 ```r
 design %<>% 
 	mutate(hours = gsub("\\_h$","", time) %>% as.numeric())
+glimpse(design)
+```
+
+```
+## Observations: 23
+## Variables: 5
+## $ InternalID (chr) "GSE10718_Biomat_1", "GSE10718_Biomat_10", "GSE1071...
+## $ ExternalID (chr) "GSM270883", "GSM270874", "GSM270873", "GSM270872",...
+## $ Treatment  (chr) "control", "control", "control", "control", "contro...
+## $ time       (chr) "24_h", "1_h", "1_h", "1_h", "4_h", "4_h", "4_h", "...
+## $ hours      (dbl) 24, 1, 1, 1, 4, 4, 4, 1, 1, 2, 24, 2, 2, 4, 4, 4, 2...
 ```
 
 
 ## Basic Graphing
 
-However, for now we can just plot some intensity distributions. To help our plot colors out, we can convert our Treatment and time variables to factors
+However, for now we can just plot some intensity distributions. To help our plot colors out, we can convert our Treatment and time variables to factors. This is more for my own benefit (to see intensity distributions) than it is to follow the homework to the letter. Homework progress will continue below. 
 
 ```r
 design$Treatment <- as.factor(design$Treatment)
 design$time <- as.factor(design$time)
 ```
 
+### Intensity Distributions
+
+Let's get biomaRt out of the way so we can move on.  
+
+```r
+ensembl <- useMart("ensembl") # set up biomaRt to use the ensembl database
+datasets <- listDatasets(ensembl) # store our datasets so we can see which to use
+ensembl <- useDataset("hsapiens_gene_ensembl", mart = ensembl) # use the human data set!
+filters <- listFilters(ensembl) # find what filters we can use and cross fingers that it's here
+attributes <- listAttributes(ensembl) # ditto with the attributes
+affy_probe_IDs <- getBM(attributes = c("ensembl_gene_id", "affy_hg_u133_plus_2"), filters = "affy_hg_u133_plus_2", values = data$ProbeID, mart = ensembl) # query the probeIDs
+head(affy_probe_IDs)
+```
+
+```
+##   ensembl_gene_id affy_hg_u133_plus_2
+## 1 ENSG00000198888        1553551_s_at
+## 2 ENSG00000210100        1553551_s_at
+## 3 ENSG00000210112        1553551_s_at
+## 4 ENSG00000198763        1553551_s_at
+## 5 ENSG00000198804          1553569_at
+## 6 ENSG00000198804        1553538_s_at
+```
+
+```r
+colnames(affy_probe_IDs) <- c("ensembl_gene_id", "ProbeID")
+data <- inner_join(data, affy_probe_IDs, by = "ProbeID")
+glimpse(data)
+```
+
+```
+## Observations: 21,323
+## Variables: 25
+## $ ProbeID            (chr) "1294_at", "1294_at", "1316_at", "1320_at",...
+## $ GSE10718_Biomat_1  (dbl) 7.900022, 7.900022, 6.126008, 6.822491, 6.6...
+## $ GSE10718_Biomat_10 (dbl) 7.623666, 7.623666, 5.846865, 7.616309, 5.6...
+## $ GSE10718_Biomat_11 (dbl) 8.224398, 8.224398, 6.299318, 7.217153, 6.2...
+## $ GSE10718_Biomat_12 (dbl) 8.009710, 8.009710, 5.910947, 6.172960, 6.0...
+## $ GSE10718_Biomat_13 (dbl) 7.607968, 7.607968, 6.623939, 7.201396, 6.8...
+## $ GSE10718_Biomat_14 (dbl) 7.448574, 7.448574, 6.824437, 7.397821, 7.0...
+## $ GSE10718_Biomat_15 (dbl) 7.414247, 7.414247, 6.884227, 6.782186, 6.5...
+## $ GSE10718_Biomat_16 (dbl) 7.671862, 7.671862, 6.830394, 6.987745, 6.4...
+## $ GSE10718_Biomat_17 (dbl) 7.892385, 7.892385, 6.453085, 5.845809, 6.1...
+## $ GSE10718_Biomat_19 (dbl) 7.804841, 7.804841, 6.658476, 6.831755, 6.1...
+## $ GSE10718_Biomat_2  (dbl) 7.721433, 7.721433, 6.569794, 6.674275, 6.7...
+## $ GSE10718_Biomat_20 (dbl) 7.548707, 7.548707, 5.806634, 6.282316, 5.5...
+## $ GSE10718_Biomat_21 (dbl) 6.343507, 6.343507, 7.064967, 7.234590, 5.7...
+## $ GSE10718_Biomat_22 (dbl) 7.797584, 7.797584, 6.485319, 6.750336, 5.5...
+## $ GSE10718_Biomat_23 (dbl) 7.951058, 7.951058, 7.084865, 7.111929, 7.1...
+## $ GSE10718_Biomat_24 (dbl) 7.877641, 7.877641, 6.237747, 6.972026, 6.3...
+## $ GSE10718_Biomat_3  (dbl) 7.510909, 7.510909, 6.384493, 6.979904, 6.7...
+## $ GSE10718_Biomat_4  (dbl) 7.309565, 7.309565, 6.885804, 7.621911, 6.4...
+## $ GSE10718_Biomat_5  (dbl) 8.004972, 8.004972, 7.100588, 7.294042, 5.7...
+## $ GSE10718_Biomat_6  (dbl) 7.502813, 7.502813, 6.421699, 7.684150, 6.2...
+## $ GSE10718_Biomat_7  (dbl) 7.500043, 7.500043, 6.269029, 7.116839, 6.6...
+## $ GSE10718_Biomat_8  (dbl) 7.509491, 7.509491, 6.534320, 6.613354, 6.5...
+## $ GSE10718_Biomat_9  (dbl) 7.735819, 7.735819, 6.888977, 6.708225, 7.0...
+## $ ensembl_gene_id    (chr) "ENSG00000263506", "ENSG00000182179", "ENSG...
+```
 Now we can `gather()` our data for easy plotting, and even join our design data as well. 
 
 ```r
@@ -361,11 +432,12 @@ glimpse(gathered_data)
 ```
 
 ```
-## Observations: 522,951
-## Variables: 3
-## $ ProbeID    (chr) "1294_at", "1316_at", "1320_at", "1431_at", "1438_a...
-## $ InternalID (chr) "GSE10718_Biomat_1", "GSE10718_Biomat_1", "GSE10718...
-## $ intensity  (dbl) 7.900022, 6.126008, 6.822491, 6.633596, 6.948795, 9...
+## Observations: 490,429
+## Variables: 4
+## $ ProbeID         (chr) "1294_at", "1294_at", "1316_at", "1320_at", "1...
+## $ ensembl_gene_id (chr) "ENSG00000263506", "ENSG00000182179", "ENSG000...
+## $ InternalID      (chr) "GSE10718_Biomat_1", "GSE10718_Biomat_1", "GSE...
+## $ intensity       (dbl) 7.900022, 7.900022, 6.126008, 6.822491, 6.6335...
 ```
 
 ```r
@@ -374,15 +446,16 @@ glimpse(gathered_data)
 ```
 
 ```
-## Observations: 522,951
-## Variables: 7
-## $ ProbeID    (chr) "1294_at", "1316_at", "1320_at", "1431_at", "1438_a...
-## $ InternalID (chr) "GSE10718_Biomat_1", "GSE10718_Biomat_1", "GSE10718...
-## $ intensity  (dbl) 7.900022, 6.126008, 6.822491, 6.633596, 6.948795, 9...
-## $ ExternalID (chr) "GSM270883", "GSM270883", "GSM270883", "GSM270883",...
-## $ Treatment  (fctr) control, control, control, control, control, contr...
-## $ time       (fctr) 24_h, 24_h, 24_h, 24_h, 24_h, 24_h, 24_h, 24_h, 24...
-## $ hours      (dbl) 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,...
+## Observations: 490,429
+## Variables: 8
+## $ ProbeID         (chr) "1294_at", "1294_at", "1316_at", "1320_at", "1...
+## $ ensembl_gene_id (chr) "ENSG00000263506", "ENSG00000182179", "ENSG000...
+## $ InternalID      (chr) "GSE10718_Biomat_1", "GSE10718_Biomat_1", "GSE...
+## $ intensity       (dbl) 7.900022, 7.900022, 6.126008, 6.822491, 6.6335...
+## $ ExternalID      (chr) "GSM270883", "GSM270883", "GSM270883", "GSM270...
+## $ Treatment       (fctr) control, control, control, control, control, ...
+## $ time            (fctr) 24_h, 24_h, 24_h, 24_h, 24_h, 24_h, 24_h, 24_...
+## $ hours           (dbl) 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24...
 ```
 
 Before we plot, let's set up our color palette.
@@ -391,7 +464,7 @@ Before we plot, let's set up our color palette.
 display.brewer.all()
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-7-1.png)
+![](SamHinshawHomework_files/figure-html/color palette 1-1.png)
 
 ```r
 timepoints <- brewer.pal(4, "Set1")
@@ -409,9 +482,9 @@ p + geom_density(aes(fill = time)) +
 	facet_wrap( ~ InternalID, ncol = 5) + ggtitle("Log2 Intensities of Samples in GSE10718")
 ```
 
-![](SamHinshawHomework_files/figure-html/intensity plot-1.png)
+![](SamHinshawHomework_files/figure-html/intensity plot faceted time-coded-1.png)
 
-...and next with treatment coding.
+...and then with treatment coding.
 
 ```r
 p <- ggplot(gathered_data, aes(x = intensity))
@@ -420,9 +493,165 @@ p + geom_density(aes(fill = Treatment)) +
 	facet_wrap( ~ InternalID, ncol = 5) + ggtitle("Log2 Intensities of Samples in GSE10718")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-8-1.png)
+![](SamHinshawHomework_files/figure-html/intensity plot faceted Treatment-coded-1.png)
 
-Good for now!  I'll continue later. 
+### Single Probe Intensity
+
+As per the homework, let's plot the gene expression data for a single probe. Let's pick one at pseudo-random!
+
+```r
+set.seed(20)
+data[sample(nrow(data), 1), 1:6] %>% kable("markdown")
+```
+
+
+
+|ProbeID   | GSE10718_Biomat_1| GSE10718_Biomat_10| GSE10718_Biomat_11| GSE10718_Biomat_12| GSE10718_Biomat_13|
+|:---------|-----------------:|------------------:|------------------:|------------------:|------------------:|
+|231836_at |          8.371558|           7.766896|           8.000101|           8.441531|           8.507032|
+
+```r
+singleprobe <- gathered_data %>% 
+	filter(ProbeID == "231836_at")
+```
+
+
+```r
+ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) + 
+	geom_bar(stat = "identity") +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+```
+
+![](SamHinshawHomework_files/figure-html/plot single probe-1.png)
+
+Okay, so we see we've got pretty similar intensities throughout the samples.  But let's group them anyways! First by treatment.
+
+```r
+ggplot(data = singleprobe, aes(y = intensity, x = Treatment)) + 
+	geom_bar(stat = "identity", width = 0.5) +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+```
+
+![](SamHinshawHomework_files/figure-html/plot single probe treatments-1.png)
+
+...then by time
+
+```r
+ggplot(data = singleprobe, aes(y = intensity, x = time)) + 
+	geom_bar(stat = "identity", width = 0.5) +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+```
+
+![](SamHinshawHomework_files/figure-html/plot single probe times-1.png)
+Ah-hah! That's rather interesting...
+Let's do all permutations of combinations. 
+
+```r
+gathered_data %<>% mutate(perm = paste(as.character(Treatment), as.character(time), sep = "_"))
+singleprobe <- gathered_data %>% 
+	filter(ProbeID == "231836_at")
+```
+
+And now to plot...
+
+```r
+ggplot(data = singleprobe, aes(y = intensity, x = perm)) + 
+	geom_bar(stat = "identity", width = 0.5) +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+```
+
+![](SamHinshawHomework_files/figure-html/plot single probe perms-1.png)
+
+Note that instead of creating new groups to chart, we could have simply color-coded the original bar chart. For example, using varying intensities of colors for time and complementary colors for the treatment. 
+
+```r
+smoke.colors <- brewer.pal(4, "Reds")
+control.colors <- brewer.pal(4, "Blues")
+names(smoke.colors) <- c("cigarette_smoke_1_h", "cigarette_smoke_2_h", "cigarette_smoke_4_h", "cigarette_smoke_24_h")
+names(control.colors) <- c("control_1_h", "control_2_h", "control_4_h", "control_24_h")
+perm_palette <- c(control.colors, smoke.colors)
+```
+
+
+```r
+singleprobe %<>% 
+    mutate(IDnum = gsub("^GSM","", ExternalID) %>% as.numeric())
+singleprobe$perm <- as.factor(singleprobe$perm)
+singleprobe %<>% 
+    mutate(perm = reorder(perm, IDnum, max))
+```
+
+
+```r
+ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) + 
+	geom_bar(stat = "identity", aes(fill = perm)) +
+	scale_fill_manual(values = perm_palette) + labs(fill = "Conditions") +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+```
+
+![](SamHinshawHomework_files/figure-html/plot color coded-1.png)
+
+# Assessing Data Quality
+
+Moving on, let's start looking at our data quality, not just visualizing it. 
+## Heatmaps
+
+
+```r
+datacor <- data %>% 
+	dplyr::select(-ensembl_gene_id, -ProbeID) %>% 
+	cor()
+melted_corr <- melt(datacor) %>% tbl_df()
+head(melted_corr)
+```
+
+```
+## Source: local data frame [6 x 3]
+## 
+##                 Var1              Var2     value
+##               (fctr)            (fctr)     (dbl)
+## 1  GSE10718_Biomat_1 GSE10718_Biomat_1 1.0000000
+## 2 GSE10718_Biomat_10 GSE10718_Biomat_1 0.9235724
+## 3 GSE10718_Biomat_11 GSE10718_Biomat_1 0.9330836
+## 4 GSE10718_Biomat_12 GSE10718_Biomat_1 0.9315279
+## 5 GSE10718_Biomat_13 GSE10718_Biomat_1 0.9376926
+## 6 GSE10718_Biomat_14 GSE10718_Biomat_1 0.9375481
+```
+
+Let's try reordering these factors with `arrange()` to reveal discrepancies. 
+
+```r
+colnames(melted_corr) <- c("InternalID", "Var2", "value")
+joined_corr <- melted_corr %>% 
+	inner_join(design, by = "InternalID")
+```
+
+```
+## Warning in inner_join_impl(x, y, by$x, by$y): joining factor and character
+## vector, coercing into character vector
+```
+
+```r
+by_time <- joined_corr %>% 
+	arrange(hours) %>% 
+	group_by(hours) %>% 
+	do(arrange(., Treatment))
+by_treatment <- joined_corr %>% 
+	arrange(Treatment) %>% 
+	group_by(Treatment) %>% 
+	do(arrange(., time))
+```
+
+
+Now to plot!
+
+```r
+ggplot(joined_corr, aes(x = InternalID, y = Var2, fill = value)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-3-1.png)
 
 ********
-This page was last updated on  Thursday, March 03, 2016 at 01:12PM
+This page was last updated on  Thursday, March 03, 2016 at 03:54PM
