@@ -5,7 +5,7 @@ Sam Hinshaw
 
 Please view the HTML version of this document, not the GitHub rendering of the `.md` file for proper Table of Contents. 
 
-## Setup
+# Setup
 
 ```r
 # library(BiocInstaller) # or source("https://bioconductor.org/biocLite.R")
@@ -54,14 +54,51 @@ sessioninfo$platform$version
 
 Looks good, let's continue
 
-## Data Inspection
+# Data Inspection
 
-### Download & Import Data
+## Download Data
 
 For this, I am using a makefile to avoid downloading the datasets more than once. 
-See [Makefile](./Makefile) in this directory. 
+See [Makefile](./Makefile) in this directory. Contents pasted here:
+```
+all: homework
 
-Now to Import
+clean: 
+	rm -rf SamHinshawHomework.md SamHinshawHomework.html data_fixed.txt design_fixed.txt
+
+data: 
+	curl -o data.txt.gz 'http://stat540-ubc.github.io/homework/assignment/homework_data/NHBE_transcriptome_data.txt.gz?raw=true'
+	gunzip -kq data.txt.gz
+
+design: 
+	curl -o design.txt 'http://stat540-ubc.github.io/homework/assignment/homework_data/NHBE_design.txt?raw=true'
+
+gitignore: data.txt.gz design.txt data.txt
+	grep -q -F 'data.txt' ../.gitignore || echo 'data.txt' >> ../.gitignore
+	grep -q -F 'data.txt.gz' ../.gitignore || echo 'data.txt.gz' >> ../.gitignore
+	grep -q -F 'design.txt' ../.gitignore || echo 'design.txt' >> ../.gitignore
+	grep -q -F 'design_fixed.txt' ../.gitignore || echo 'design_fixed.txt' >> ../.gitignore
+	grep -q -F 'data_fixed.txt' ../.gitignore || echo 'data_fixed.txt' >> ../.gitignore
+
+data_fixed: data.txt
+	cp data.txt data_fixed.txt
+	sed -i -e 's/^"GSE10718_Biomat_1"/"ProbeID"	"GSE10718_Biomat_1"/' data_fixed.txt
+	
+design_fixed: design.txt
+	cp design.txt design_fixed.txt
+	sed -i -e 's/^"ExternalID"/"InternalID"	"ExternalID"/' design_fixed.txt
+	
+homework:  SamHinshawHomework.Rmd gitignore data_fixed design_fixed
+	Rscript -e "rmarkdown::render('SamHinshawHomework.Rmd')"
+	
+```
+
+## Experimental Design
+
+Before we do anything, let's see what's what in our experiment  
+> Gene expression patterns were assessed in normal human bronchial epithelial (NHBE) cells exposed to cigarette smoke (CS) from a typical "full flavor" American brand of cigarettes in order to develop a better understanding of the genomic impact of tobacco exposure, which can ultimately define biomarkers that discriminate tobacco-related effects and outcomes in a clinical setting. NHBE cells were treated with CS for 15 minutes and alterations to the transcriptome assessed at 1,2,4 and 24 hours post-CS-exposure using high-density oligonucleotide microarrays.
+
+## Import Data
 
 ```r
 data <- read_delim("data.txt", delim = "\t")
@@ -81,7 +118,7 @@ data <- read_delim("data.txt", delim = "\t")
 
 Huh, thanks to `readr`, we're getting an error. Something is wrong with our column count. Let's head to the next step and figure out how to handle this error.  
 
-### Inspect Data
+## Inspect Data
 
 ```r
 class(data) # First let's make sure this is expected. We should have a data.frame, specifically a tbl_df. 
@@ -146,6 +183,8 @@ Nope, looks like it's just a problem with the source file.
 ```r
 rm(data_method2)
 ```
+
+### Fix Import Errors
 
 Well, since we're not supposed to edit our souce file, I've copied the file do `data_fixed.txt` and appended `"probeIDs	"` to the beginning of the first line with `sed`.  Now we should be ready to rock!
 
@@ -222,6 +261,8 @@ glimpse(design)
 ## $ time       (chr) "24_h", "1_h", "1_h", "1_h", "4_h", "4_h", "4_h", "...
 ```
 
+### Inspect Data
+
 There we go! So we've got 23 samples. How many different treatment groups, and how many different timepoints?
 
 ```r
@@ -290,6 +331,18 @@ nrow(data)
 
 22,737 probes.  Do we know any microarrays that have exactly that many genes?  Fortunately, we don't need to wonder. [This study, GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718) used [GPL570](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL570), the well known Affymetrix HG U133+ 2.0 Array. Later we can use biomaRt to convert our probeIDs to ensembl IDs (or another equivalent), given the platform information. 
 
+## Basic Data Manipulation
+Before we continue, let's create a new column in our dataset that holds our time post-treatment as hours.
+
+
+```r
+design %<>% 
+	mutate(hours = gsub("\\_h$","", time) %>% as.numeric())
+```
+
+
+## Basic Graphing
+
 However, for now we can just plot some intensity distributions. To help our plot colors out, we can convert our Treatment and time variables to factors
 
 ```r
@@ -320,13 +373,14 @@ glimpse(gathered_data)
 
 ```
 ## Observations: 522,951
-## Variables: 6
+## Variables: 7
 ## $ ProbeID    (chr) "1294_at", "1316_at", "1320_at", "1431_at", "1438_a...
 ## $ InternalID (chr) "GSE10718_Biomat_1", "GSE10718_Biomat_1", "GSE10718...
 ## $ intensity  (dbl) 7.900022, 6.126008, 6.822491, 6.633596, 6.948795, 9...
 ## $ ExternalID (chr) "GSM270883", "GSM270883", "GSM270883", "GSM270883",...
 ## $ Treatment  (fctr) control, control, control, control, control, contr...
 ## $ time       (fctr) 24_h, 24_h, 24_h, 24_h, 24_h, 24_h, 24_h, 24_h, 24...
+## $ hours      (dbl) 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,...
 ```
 
 Before we plot, let's set up our color palette.
@@ -335,7 +389,7 @@ Before we plot, let's set up our color palette.
 display.brewer.all()
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-6-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-7-1.png)
 
 ```r
 timepoints <- brewer.pal(4, "Set1")
@@ -364,9 +418,9 @@ p + geom_density(aes(fill = Treatment)) +
 	facet_wrap( ~ InternalID, ncol = 5) + ggtitle("Log2 Intensities of Samples in GSE10718")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-7-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-8-1.png)
 
 Good for now!  I'll continue later. 
 
 ********
-This page was last updated on  Tuesday, March 01, 2016 at 04:54PM
+This page was last updated on  Thursday, March 03, 2016 at 01:08PM
