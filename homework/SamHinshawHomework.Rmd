@@ -22,7 +22,6 @@ suppressPackageStartupMessages({
 	library(edgeR) # biocLite("edgeR")
 	library(DESeq2) # biocLite("DESeq2")
 	library(biomaRt)
-	library(dplyr)
 	library(magrittr)
 	library(devtools)
 	library(broom)
@@ -34,6 +33,7 @@ suppressPackageStartupMessages({
 	library(pander)
 	library(tidyr)
 	library(RColorBrewer)
+	library(dplyr)
 })
 ```
 
@@ -123,6 +123,7 @@ rm(data_method2)
 Well, since we're not supposed to edit our souce file, I've copied the file do `data_fixed.txt` and appended `"probeIDs	"` to the beginning of the first line with `sed`.  Now we should be ready to rock!
 ```{r read data_fixed.txt}
 data <- read_delim("data_fixed.txt", delim = "\t")
+fitdata <- data
 ```
 
 Sweet! No errors. Let's take a closer look.
@@ -298,6 +299,7 @@ ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) +
 	theme(axis.text.x = element_text(angle = 65, hjust = 1))
 ```
 
+
 # Assessing Data Quality
 
 Moving on, let's start looking at our data quality, not just visualizing it. 
@@ -313,26 +315,128 @@ head(melted_corr)
 
 Let's try reordering these factors with `arrange()` to reveal discrepancies. 
 ```{r}
+design$qualitative <- NULL
+design %<>% 
+	mutate(qualitative = paste0(Treatment, "_", as.character(hours), "_", ExternalID))
 colnames(melted_corr) <- c("InternalID", "Var2", "value")
+design_for_corr <- design %>% 
+	select(-ExternalID)
 joined_corr <- melted_corr %>% 
-	inner_join(design, by = "InternalID")
+	inner_join(design_for_corr, by = "InternalID")
+##
+design_for_corr2 <- design_for_corr %>% 
+	select(InternalID, qualitative, hours, Treatment)
+colnames(design_for_corr2) <- c("Var2", "qualitative2", "hours2", "Treatment2")
+joined_corr %<>% 
+	inner_join(design_for_corr2, by = "Var2")
+## Rearrange & reorder by time & then treatment
 by_time <- joined_corr %>% 
-	arrange(hours) %>% 
-	group_by(hours) %>% 
-	do(arrange(., Treatment))
+	arrange(-hours, Treatment)
+by_time$factororder <- 1:nrow(by_time)
+by_time %<>% 
+	mutate(qualitative = reorder(qualitative, factororder, max))
+by_time %<>% 
+	arrange(hours2, Treatment2)
+by_time$factororder2 <- 1:nrow(by_time)
+by_time %<>% 
+	mutate(qualitative2 = reorder(qualitative2, factororder2, max))
+## Rearrange & reorder by treatment & then time
 by_treatment <- joined_corr %>% 
-	arrange(Treatment) %>% 
-	group_by(Treatment) %>% 
-	do(arrange(., time))
+	arrange(Treatment, -hours)
+by_treatment$factororder <- 1:nrow(by_treatment)
+by_treatment %<>% 
+	mutate(qualitative = reorder(qualitative, factororder, max))
+by_treatment %<>% 
+	arrange(Treatment2, hours2)
+by_treatment$factororder2 <- 1:nrow(by_time)
+by_treatment %<>% 
+	mutate(qualitative2 = reorder(qualitative2, factororder2, max))
 ```
 
+```{r}
+tilegradient <- brewer.pal(11, "Spectral")
+```
 
 Now to plot!
 ```{r}
-ggplot(joined_corr, aes(x = InternalID, y = Var2, fill = value)) + 
+ggplot(joined_corr, aes(x = qualitative2, y = qualitative, fill = value)) + 
 	geom_tile() +
-	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_gradientn(colors = tilegradient)
+ggplot(by_time, aes(x = qualitative2, y = qualitative, fill = value)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_gradientn(colors = tilegradient)
+ggplot(by_treatment, aes(x = qualitative2, y = qualitative, fill = value)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_gradientn(colors = tilegradient)
 ```
 
+## Outliers
+
+Okay. That's an absolutely horrendous amount of code just to reorder a damn heatmap. I'm never doing that again, I'll stick with my unordered heatmap, which told me what I needed to know. GSM270874 or "GSE10718-Biomat-10" is an outlier. No significant batch effects noticeable. 
+
+```{r}
+outliers <- joined_corr %>% 
+	filter(InternalID == "GSE10718_Biomat_10")
+outliers %<>% 
+	mutate(qualitative2 = reorder(qualitative2, value, max))
+## Mean Correlation for this sample
+outliers %>% 
+	filter(Var2 != "GSE10718_Biomat_10") %>% 
+	summarize(MeanCorr = mean(value))
+```
+
+Okay, looks like an outlier, but how can we be sure? What's the average correlation?
+```{r}
+joined_corr %>% 
+	filter(value != 1.0) %>% 
+	group_by(InternalID) %>% 
+	summarize(MeanCorr = mean(value)) %>% 
+	arrange(-MeanCorr) %>% 
+	kable("markdown")
+
+## What about within groups?
+
+joined_corr %>% 
+	filter(value != 1.0) %>% 
+	group_by(Treatment, hours) %>% 
+	summarize(MeanCorr = mean(value)) %>% 
+	arrange(-MeanCorr) %>% 
+	kable("markdown")
+```
+
+Lastly, how does this outlier sample compare to specific treatments (This is a 1hr control sample). For this I'll filter out correlation with itself.
+```{r}
+outliers %>% 
+	filter(Var2 != "GSE10718_Biomat_10") %>% 
+	group_by(Treatment2, hours2) %>% 
+	summarize(MeanCorr = mean(value)) %>% 
+	arrange(-MeanCorr) %>% 
+	kable("markdown")
+```
+
+At last, something meaningful!! This sample correlates MOST those samples within its own group, but also highly with the 1hr cigarette smoke group.  
+
+# Differential Expression with Respect to Treatment
+
+## Linear Model
+```{r}
+combn <- factor(paste(design$Treatment,
+					  design$hours, sep = "_"))
+```
+
+```{r}
+design.matrix <- model.matrix(~combn)
+row.names(fitdata) <- fitdata$ProbeID
+fitdata$ProbeID <- NULL
+fit <- lmFit(fitdata, design.matrix)
+efit <- eBayes(fit)
+df <- topTable(efit, coef=2)
+df %>% kable("markdown")
+```
+
+That's good for now. 
 ********
 This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`

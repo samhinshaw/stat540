@@ -14,7 +14,6 @@ suppressPackageStartupMessages({
 	library(edgeR) # biocLite("edgeR")
 	library(DESeq2) # biocLite("DESeq2")
 	library(biomaRt)
-	library(dplyr)
 	library(magrittr)
 	library(devtools)
 	library(broom)
@@ -26,6 +25,7 @@ suppressPackageStartupMessages({
 	library(pander)
 	library(tidyr)
 	library(RColorBrewer)
+	library(dplyr)
 })
 ```
 
@@ -193,6 +193,7 @@ Well, since we're not supposed to edit our souce file, I've copied the file do `
 
 ```r
 data <- read_delim("data_fixed.txt", delim = "\t")
+fitdata <- data
 ```
 
 Sweet! No errors. Let's take a closer look.
@@ -591,6 +592,7 @@ ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) +
 
 ![](SamHinshawHomework_files/figure-html/plot color coded-1.png)
 
+
 # Assessing Data Quality
 
 Moving on, let's start looking at our data quality, not just visualizing it. 
@@ -621,37 +623,242 @@ head(melted_corr)
 Let's try reordering these factors with `arrange()` to reveal discrepancies. 
 
 ```r
+design$qualitative <- NULL
+design %<>% 
+	mutate(qualitative = paste0(Treatment, "_", as.character(hours), "_", ExternalID))
 colnames(melted_corr) <- c("InternalID", "Var2", "value")
+design_for_corr <- design %>% 
+	select(-ExternalID)
 joined_corr <- melted_corr %>% 
-	inner_join(design, by = "InternalID")
+	inner_join(design_for_corr, by = "InternalID")
 ```
 
 ```
-## Warning in inner_join_impl(x, y, by$x, by$y): joining factor and character
-## vector, coercing into character vector
+## Warning in inner_join_impl(x, y, by$x, by$y, suffix$x, suffix$y): joining
+## factor and character vector, coercing into character vector
 ```
 
 ```r
-by_time <- joined_corr %>% 
-	arrange(hours) %>% 
-	group_by(hours) %>% 
-	do(arrange(., Treatment))
-by_treatment <- joined_corr %>% 
-	arrange(Treatment) %>% 
-	group_by(Treatment) %>% 
-	do(arrange(., time))
+##
+design_for_corr2 <- design_for_corr %>% 
+	select(InternalID, qualitative, hours, Treatment)
+colnames(design_for_corr2) <- c("Var2", "qualitative2", "hours2", "Treatment2")
+joined_corr %<>% 
+	inner_join(design_for_corr2, by = "Var2")
 ```
 
+```
+## Warning in inner_join_impl(x, y, by$x, by$y, suffix$x, suffix$y): joining
+## factor and character vector, coercing into character vector
+```
+
+```r
+## Rearrange & reorder by time & then treatment
+by_time <- joined_corr %>% 
+	arrange(-hours, Treatment)
+by_time$factororder <- 1:nrow(by_time)
+by_time %<>% 
+	mutate(qualitative = reorder(qualitative, factororder, max))
+by_time %<>% 
+	arrange(hours2, Treatment2)
+by_time$factororder2 <- 1:nrow(by_time)
+by_time %<>% 
+	mutate(qualitative2 = reorder(qualitative2, factororder2, max))
+## Rearrange & reorder by treatment & then time
+by_treatment <- joined_corr %>% 
+	arrange(Treatment, -hours)
+by_treatment$factororder <- 1:nrow(by_treatment)
+by_treatment %<>% 
+	mutate(qualitative = reorder(qualitative, factororder, max))
+by_treatment %<>% 
+	arrange(Treatment2, hours2)
+by_treatment$factororder2 <- 1:nrow(by_time)
+by_treatment %<>% 
+	mutate(qualitative2 = reorder(qualitative2, factororder2, max))
+```
+
+
+```r
+tilegradient <- brewer.pal(11, "Spectral")
+```
 
 Now to plot!
 
 ```r
-ggplot(joined_corr, aes(x = InternalID, y = Var2, fill = value)) + 
+ggplot(joined_corr, aes(x = qualitative2, y = qualitative, fill = value)) + 
 	geom_tile() +
-	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_gradientn(colors = tilegradient)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-3-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-4-1.png)
 
+```r
+ggplot(by_time, aes(x = qualitative2, y = qualitative, fill = value)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_gradientn(colors = tilegradient)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-4-2.png)
+
+```r
+ggplot(by_treatment, aes(x = qualitative2, y = qualitative, fill = value)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_gradientn(colors = tilegradient)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-4-3.png)
+
+## Outliers
+
+Okay. That's an absolutely horrendous amount of code just to reorder a damn heatmap. I'm never doing that again, I'll stick with my unordered heatmap, which told me what I needed to know. GSM270874 or "GSE10718-Biomat-10" is an outlier. No significant batch effects noticeable. 
+
+
+```r
+outliers <- joined_corr %>% 
+	filter(InternalID == "GSE10718_Biomat_10")
+outliers %<>% 
+	mutate(qualitative2 = reorder(qualitative2, value, max))
+## Mean Correlation for this sample
+outliers %>% 
+	filter(Var2 != "GSE10718_Biomat_10") %>% 
+	summarize(MeanCorr = mean(value))
+```
+
+```
+## Source: local data frame [1 x 1]
+## 
+##    MeanCorr
+##       (dbl)
+## 1 0.9215407
+```
+
+Okay, looks like an outlier, but how can we be sure? What's the average correlation?
+
+```r
+joined_corr %>% 
+	filter(value != 1.0) %>% 
+	group_by(InternalID) %>% 
+	summarize(MeanCorr = mean(value)) %>% 
+	arrange(-MeanCorr) %>% 
+	kable("markdown")
+```
+
+
+
+|InternalID         |  MeanCorr|
+|:------------------|---------:|
+|GSE10718_Biomat_15 | 0.9367632|
+|GSE10718_Biomat_16 | 0.9365047|
+|GSE10718_Biomat_17 | 0.9348710|
+|GSE10718_Biomat_13 | 0.9346969|
+|GSE10718_Biomat_14 | 0.9345540|
+|GSE10718_Biomat_6  | 0.9331644|
+|GSE10718_Biomat_19 | 0.9331202|
+|GSE10718_Biomat_3  | 0.9328543|
+|GSE10718_Biomat_1  | 0.9320065|
+|GSE10718_Biomat_11 | 0.9312138|
+|GSE10718_Biomat_8  | 0.9309811|
+|GSE10718_Biomat_2  | 0.9302614|
+|GSE10718_Biomat_7  | 0.9300924|
+|GSE10718_Biomat_20 | 0.9295662|
+|GSE10718_Biomat_12 | 0.9291928|
+|GSE10718_Biomat_22 | 0.9283850|
+|GSE10718_Biomat_9  | 0.9275301|
+|GSE10718_Biomat_21 | 0.9258038|
+|GSE10718_Biomat_24 | 0.9254918|
+|GSE10718_Biomat_5  | 0.9253976|
+|GSE10718_Biomat_4  | 0.9241465|
+|GSE10718_Biomat_23 | 0.9239977|
+|GSE10718_Biomat_10 | 0.9215407|
+
+```r
+## What about within groups?
+
+joined_corr %>% 
+	filter(value != 1.0) %>% 
+	group_by(Treatment, hours) %>% 
+	summarize(MeanCorr = mean(value)) %>% 
+	arrange(-MeanCorr) %>% 
+	kable("markdown")
+```
+
+
+
+|Treatment       | hours|  MeanCorr|
+|:---------------|-----:|---------:|
+|cigarette_smoke |     1| 0.9356879|
+|control         |     4| 0.9353380|
+|control         |    24| 0.9317074|
+|control         |     2| 0.9295345|
+|cigarette_smoke |     2| 0.9294967|
+|cigarette_smoke |    24| 0.9275695|
+|control         |     1| 0.9273158|
+|cigarette_smoke |     4| 0.9259581|
+
+Lastly, how does this outlier sample compare to specific treatments (This is a 1hr control sample). For this I'll filter out correlation with itself.
+
+```r
+outliers %>% 
+	filter(Var2 != "GSE10718_Biomat_10") %>% 
+	group_by(Treatment2, hours2) %>% 
+	summarize(MeanCorr = mean(value)) %>% 
+	arrange(-MeanCorr) %>% 
+	kable("markdown")
+```
+
+
+
+|Treatment2      | hours2|  MeanCorr|
+|:---------------|------:|---------:|
+|control         |      1| 0.9274908|
+|cigarette_smoke |      1| 0.9264554|
+|control         |     24| 0.9255085|
+|control         |      4| 0.9252802|
+|control         |      2| 0.9236324|
+|cigarette_smoke |      2| 0.9197050|
+|cigarette_smoke |      4| 0.9148929|
+|cigarette_smoke |     24| 0.9129820|
+
+At last, something meaningful!! This sample correlates MOST those samples within its own group, but also highly with the 1hr cigarette smoke group.  
+
+# Differential Expression with Respect to Treatment
+
+## Linear Model
+
+```r
+combn <- factor(paste(design$Treatment,
+					  design$hours, sep = "_"))
+```
+
+
+```r
+design.matrix <- model.matrix(~combn)
+row.names(fitdata) <- fitdata$ProbeID
+fitdata$ProbeID <- NULL
+fit <- lmFit(fitdata, design.matrix)
+efit <- eBayes(fit)
+df <- topTable(efit, coef=2)
+df %>% kable("markdown")
+```
+
+
+
+|            |    logFC|   AveExpr|        t| P.Value| adj.P.Val|        B|
+|:-----------|--------:|---------:|--------:|-------:|---------:|--------:|
+|204475_at   | 2.896548| 12.766287| 21.83906|       0|     0e+00| 19.00288|
+|203665_at   | 4.308239| 10.745720| 21.27219|       0|     0e+00| 18.72882|
+|241418_at   | 2.942141|  9.167353| 19.73735|       0|     0e+00| 17.92296|
+|226650_at   | 3.495259| 11.589417| 17.97868|       0|     0e+00| 16.86965|
+|203810_at   | 2.870408| 10.684728| 17.43976|       0|     0e+00| 16.51543|
+|203811_s_at | 3.391046| 10.276328| 16.02841|       0|     1e-07| 15.50864|
+|225061_at   | 2.636445| 10.503353| 15.83022|       0|     1e-07| 15.35740|
+|214696_at   | 1.864804| 11.730937| 14.83136|       0|     2e-07| 14.55469|
+|226541_at   | 2.197414| 11.269388| 14.41075|       0|     3e-07| 14.19530|
+|225252_at   | 1.603954| 12.195739| 14.20703|       0|     3e-07| 14.01641|
+
+That's good for now. 
 ********
-This page was last updated on  Thursday, March 03, 2016 at 03:54PM
+This page was last updated on  Tuesday, March 08, 2016 at 05:23PM
