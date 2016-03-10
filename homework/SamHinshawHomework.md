@@ -5,7 +5,7 @@ Sam Hinshaw
 
 Please view the HTML version of this document, not the GitHub rendering of the `.md` file for proper Table of Contents. 
 
-# Setup
+# 0 Setup
 
 ```r
 # library(BiocInstaller) # or source("https://bioconductor.org/biocLite.R")
@@ -55,9 +55,9 @@ sessioninfo$platform$version
 
 Looks good, let's continue
 
-# Data Inspection
+# 1 Data Inspection
 
-## Download Data
+## 1.1 Download Data
 
 For this, I am using a makefile to avoid downloading the datasets more than once. 
 See [Makefile](./Makefile) in this directory. Contents pasted here:
@@ -94,14 +94,14 @@ homework:  SamHinshawHomework.Rmd gitignore data_fixed design_fixed
 	
 ```
 
-## Experimental Design
+### Experimental Design
 
 Before we do anything, let's see what's what in our experiment, [GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718)
 <blockquote>
 Gene expression patterns were assessed in normal human bronchial epithelial (NHBE) cells exposed to cigarette smoke (CS) from a typical "full flavor" American brand of cigarettes in order to develop a better understanding of the genomic impact of tobacco exposure, which can ultimately define biomarkers that discriminate tobacco-related effects and outcomes in a clinical setting. NHBE cells were treated with CS for 15 minutes and alterations to the transcriptome assessed at 1,2,4 and 24 hours post-CS-exposure using high-density oligonucleotide microarrays.
 </blockquote>
 
-## Import Data
+### Import Data
 
 ```r
 data <- read_delim("data.txt", delim = "\t")
@@ -121,7 +121,7 @@ data <- read_delim("data.txt", delim = "\t")
 
 Huh, thanks to `readr`, we're getting an error. Something is wrong with our column count. Let's head to the next step and figure out how to handle this error.  
 
-## Inspect Data
+### Inspect Data
 
 ```r
 class(data) # First let's make sure this is expected. We should have a data.frame, specifically a tbl_df. 
@@ -335,7 +335,7 @@ nrow(data)
 
 22,737 probes.  Do we know any microarrays that have exactly that many genes?  Fortunately, we don't need to wonder. This study, [GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718) used [GPL570](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL570), the well known Affymetrix HG U133+ 2.0 Array. Later we can use biomaRt to convert our probeIDs to ensembl IDs (or another equivalent), given the platform information. 
 
-## Basic Data Manipulation
+## 1.2 Basic Data Manipulation
 Before we continue, let's create a new column in our dataset that holds our time post-treatment as hours.
 
 
@@ -356,7 +356,7 @@ glimpse(design)
 ```
 
 
-## Basic Graphing
+## 1.3 Basic Graphing
 
 However, for now we can just plot some intensity distributions. To help our plot colors out, we can convert our Treatment and time variables to factors. This is more for my own benefit (to see intensity distributions) than it is to follow the homework to the letter. Homework progress will continue below. 
 
@@ -593,10 +593,10 @@ ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) +
 ![](SamHinshawHomework_files/figure-html/plot color coded-1.png)
 
 
-# Assessing Data Quality
+# 2 Assessing Data Quality
 
 Moving on, let's start looking at our data quality, not just visualizing it. 
-## Heatmaps
+## 2.1 Heatmaps
 
 
 ```r
@@ -711,9 +711,9 @@ ggplot(by_treatment, aes(x = qualitative2, y = qualitative, fill = value)) +
 
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-4-3.png)
 
-## Outliers
+## 2.2 Outliers
 
-Okay. That's an absolutely horrendous amount of code just to reorder a damn heatmap. I'm never doing that again, I'll stick with my unordered heatmap, which told me what I needed to know. GSM270874 or "GSE10718-Biomat-10" is an outlier. No significant batch effects noticeable. 
+Okay. That's an absolutely horrendous amount of code just to reorder a damn heatmap. I'm never doing that again, I'll stick with my unordered heatmap, which told me what I needed to know. "GSM270874" or "GSE10718-Biomat-10" is an outlier. No significant batch effects noticeable. 
 
 
 ```r
@@ -824,18 +824,21 @@ outliers %>%
 
 At last, something meaningful!! This sample correlates MOST those samples within its own group, but also highly with the 1hr cigarette smoke group.  
 
-# Differential Expression with Respect to Treatment
+# 3 Differential Expression with Respect to Treatment
 
-## Linear Model
+## 3.1 Linear Model
 
 ```r
-combn <- factor(paste(design$Treatment,
-					  design$hours, sep = "_"))
+# treat.and.hours <- factor(paste(design$Treatment,
+# 					  design$hours, sep = "_"))
+treatmentgroups <- design$Treatment
 ```
 
 
 ```r
-design.matrix <- model.matrix(~combn)
+# design.matrix <- model.matrix(~0+treat.and.hours)
+# design.matrix <- model.matrix(~treat.and.hours)
+design.matrix <- model.matrix(~0+treatmentgroups)
 row.names(fitdata) <- fitdata$ProbeID
 fitdata$ProbeID <- NULL
 fit <- lmFit(fitdata, design.matrix)
@@ -846,19 +849,21 @@ df %>% kable("markdown")
 
 
 
-|            |    logFC|   AveExpr|        t| P.Value| adj.P.Val|        B|
-|:-----------|--------:|---------:|--------:|-------:|---------:|--------:|
-|204475_at   | 2.896548| 12.766287| 21.83906|       0|     0e+00| 19.00288|
-|203665_at   | 4.308239| 10.745720| 21.27219|       0|     0e+00| 18.72882|
-|241418_at   | 2.942141|  9.167353| 19.73735|       0|     0e+00| 17.92296|
-|226650_at   | 3.495259| 11.589417| 17.97868|       0|     0e+00| 16.86965|
-|203810_at   | 2.870408| 10.684728| 17.43976|       0|     0e+00| 16.51543|
-|203811_s_at | 3.391046| 10.276328| 16.02841|       0|     1e-07| 15.50864|
-|225061_at   | 2.636445| 10.503353| 15.83022|       0|     1e-07| 15.35740|
-|214696_at   | 1.864804| 11.730937| 14.83136|       0|     2e-07| 14.55469|
-|226541_at   | 2.197414| 11.269388| 14.41075|       0|     3e-07| 14.19530|
-|225252_at   | 1.603954| 12.195739| 14.20703|       0|     3e-07| 14.01641|
+|            |    logFC|  AveExpr|        t| P.Value| adj.P.Val|        B|
+|:-----------|--------:|--------:|--------:|-------:|---------:|--------:|
+|200817_x_at | 15.65254| 15.66252| 541.1511|       0|         0| 76.88097|
+|212391_x_at | 15.72935| 15.73838| 535.7102|       0|         0| 76.85626|
+|212284_x_at | 15.64879| 15.65159| 533.8926|       0|         0| 76.84785|
+|212185_x_at | 15.71314| 15.69879| 530.6296|       0|         0| 76.83254|
+|217733_s_at | 15.90590| 15.90816| 530.2325|       0|         0| 76.83066|
+|212790_x_at | 15.68590| 15.69489| 525.3697|       0|         0| 76.80731|
+|212661_x_at | 15.69230| 15.70243| 524.7771|       0|         0| 76.80442|
+|211978_x_at | 15.65500| 15.65800| 522.5811|       0|         0| 76.79364|
+|200717_x_at | 15.65782| 15.66585| 521.2726|       0|         0| 76.78716|
+|213084_x_at | 15.75279| 15.78234| 519.9667|       0|         0| 76.78064|
 
-That's good for now. 
+In this model, we have ignored time as a covariate, comparing samples against each other just based on treatment group.  In equation terms...
+$$Y_g = X_g\alpha_g + \epsilon_g$$
+
 ********
-This page was last updated on  Tuesday, March 08, 2016 at 05:23PM
+This page was last updated on  Thursday, March 10, 2016 at 02:06PM

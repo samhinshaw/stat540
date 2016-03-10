@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Please view the HTML version of this document, not the GitHub rendering of the `.md` file for proper Table of Contents. 
 
-# Setup
+# 0 Setup
 ```{r libraries}
 # library(BiocInstaller) # or source("https://bioconductor.org/biocLite.R")
 suppressPackageStartupMessages({
@@ -49,9 +49,9 @@ sessioninfo$platform$version
 
 Looks good, let's continue
 
-# Data Inspection
+# 1 Data Inspection
 
-## Download Data
+## 1.1 Download Data
 
 For this, I am using a makefile to avoid downloading the datasets more than once. 
 See [Makefile](./Makefile) in this directory. Contents pasted here:
@@ -88,21 +88,21 @@ homework:  SamHinshawHomework.Rmd gitignore data_fixed design_fixed
 	
 ```
 
-## Experimental Design
+### Experimental Design
 
 Before we do anything, let's see what's what in our experiment, [GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718)
 <blockquote>
 Gene expression patterns were assessed in normal human bronchial epithelial (NHBE) cells exposed to cigarette smoke (CS) from a typical "full flavor" American brand of cigarettes in order to develop a better understanding of the genomic impact of tobacco exposure, which can ultimately define biomarkers that discriminate tobacco-related effects and outcomes in a clinical setting. NHBE cells were treated with CS for 15 minutes and alterations to the transcriptome assessed at 1,2,4 and 24 hours post-CS-exposure using high-density oligonucleotide microarrays.
 </blockquote>
 
-## Import Data
+### Import Data
 ```{r read data.txt}
 data <- read_delim("data.txt", delim = "\t")
 ```
 
 Huh, thanks to `readr`, we're getting an error. Something is wrong with our column count. Let's head to the next step and figure out how to handle this error.  
 
-## Inspect Data
+### Inspect Data
 ```{r check data}
 class(data) # First let's make sure this is expected. We should have a data.frame, specifically a tbl_df. 
 glimpse(data)
@@ -164,7 +164,7 @@ nrow(data)
 
 22,737 probes.  Do we know any microarrays that have exactly that many genes?  Fortunately, we don't need to wonder. This study, [GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718) used [GPL570](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL570), the well known Affymetrix HG U133+ 2.0 Array. Later we can use biomaRt to convert our probeIDs to ensembl IDs (or another equivalent), given the platform information. 
 
-## Basic Data Manipulation
+## 1.2 Basic Data Manipulation
 Before we continue, let's create a new column in our dataset that holds our time post-treatment as hours.
 
 ```{r add hours column}
@@ -174,7 +174,7 @@ glimpse(design)
 ```
 
 
-## Basic Graphing
+## 1.3 Basic Graphing
 
 However, for now we can just plot some intensity distributions. To help our plot colors out, we can convert our Treatment and time variables to factors. This is more for my own benefit (to see intensity distributions) than it is to follow the homework to the letter. Homework progress will continue below. 
 ```{r create factors}
@@ -300,10 +300,10 @@ ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) +
 ```
 
 
-# Assessing Data Quality
+# 2 Assessing Data Quality
 
 Moving on, let's start looking at our data quality, not just visualizing it. 
-## Heatmaps
+## 2.1 Heatmaps
 
 ```{r}
 datacor <- data %>% 
@@ -373,9 +373,9 @@ ggplot(by_treatment, aes(x = qualitative2, y = qualitative, fill = value)) +
 	scale_fill_gradientn(colors = tilegradient)
 ```
 
-## Outliers
+## 2.2 Outliers
 
-Okay. That's an absolutely horrendous amount of code just to reorder a damn heatmap. I'm never doing that again, I'll stick with my unordered heatmap, which told me what I needed to know. GSM270874 or "GSE10718-Biomat-10" is an outlier. No significant batch effects noticeable. 
+Okay. That's an absolutely horrendous amount of code just to reorder a damn heatmap. I'm never doing that again, I'll stick with my unordered heatmap, which told me what I needed to know. "GSM270874" or "GSE10718-Biomat-10" is an outlier. No significant batch effects noticeable. 
 
 ```{r}
 outliers <- joined_corr %>% 
@@ -419,16 +419,19 @@ outliers %>%
 
 At last, something meaningful!! This sample correlates MOST those samples within its own group, but also highly with the 1hr cigarette smoke group.  
 
-# Differential Expression with Respect to Treatment
+# 3 Differential Expression with Respect to Treatment
 
-## Linear Model
+## 3.1 Linear Model
 ```{r}
-combn <- factor(paste(design$Treatment,
-					  design$hours, sep = "_"))
+# treat.and.hours <- factor(paste(design$Treatment,
+# 					  design$hours, sep = "_"))
+treatmentgroups <- design$Treatment
 ```
 
 ```{r}
-design.matrix <- model.matrix(~combn)
+# design.matrix <- model.matrix(~0+treat.and.hours)
+# design.matrix <- model.matrix(~treat.and.hours)
+design.matrix <- model.matrix(~0+treatmentgroups)
 row.names(fitdata) <- fitdata$ProbeID
 fitdata$ProbeID <- NULL
 fit <- lmFit(fitdata, design.matrix)
@@ -437,6 +440,8 @@ df <- topTable(efit, coef=2)
 df %>% kable("markdown")
 ```
 
-That's good for now. 
+In this model, we have ignored time as a covariate, comparing samples against each other just based on treatment group.  In equation terms...
+$$Y_g = X_g\alpha_g + \epsilon_g$$
+
 ********
 This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`
