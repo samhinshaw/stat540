@@ -432,16 +432,34 @@ treatmentgroups <- design$Treatment
 # design.matrix <- model.matrix(~0+treat.and.hours)
 # design.matrix <- model.matrix(~treat.and.hours)
 design.matrix <- model.matrix(~0+treatmentgroups)
+colnames(design.matrix) <- c("CS", "Control")
+## Let's make sure this looks right:
+design.matrix %>% kable("markdown")
 row.names(fitdata) <- fitdata$ProbeID
 fitdata$ProbeID <- NULL
 fit <- lmFit(fitdata, design.matrix)
 efit <- eBayes(fit)
-df <- topTable(efit, coef=2)
+df <- topTable(efit, coef=1, adjust = "BH")
 df %>% kable("markdown")
+results <- decideTests(efit)
+vennDiagram(results)
 ```
 
 In this model, we have ignored time as a covariate, comparing samples against each other just based on treatment group.  In equation terms...
-$$Y_g = X_g\alpha_g + \epsilon_g$$
+$$Y_g = X\alpha_g + \epsilon_g$$
+
+Where:  
+Y = our responses  
+X = our design matrix:   
+
+```{r}
+design.matrix %>% kable("markdown")
+```
+
+alpha = the parameters of our linear model  
+epsilon = the error of our samples  
+
+If that equation isn't formatting correctly, make sure you're viewing the HTML version, not the .md version github has formatted. 
 
 ********
 This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`

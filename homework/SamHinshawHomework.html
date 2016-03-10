@@ -889,11 +889,116 @@ treatmentgroups &lt;- design$Treatment</code></pre>
 <pre class="r"><code># design.matrix &lt;- model.matrix(~0+treat.and.hours)
 # design.matrix &lt;- model.matrix(~treat.and.hours)
 design.matrix &lt;- model.matrix(~0+treatmentgroups)
-row.names(fitdata) &lt;- fitdata$ProbeID
+colnames(design.matrix) &lt;- c(&quot;CS&quot;, &quot;Control&quot;)
+## Let's make sure this looks right:
+design.matrix %&gt;% kable(&quot;markdown&quot;)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="right">CS</th>
+<th align="right">Control</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>row.names(fitdata) &lt;- fitdata$ProbeID
 fitdata$ProbeID &lt;- NULL
 fit &lt;- lmFit(fitdata, design.matrix)
 efit &lt;- eBayes(fit)
-df &lt;- topTable(efit, coef=2)
+df &lt;- topTable(efit, coef=1, adjust = &quot;BH&quot;)
 df %&gt;% kable(&quot;markdown&quot;)</code></pre>
 <table style="width:101%;">
 <colgroup>
@@ -919,99 +1024,211 @@ df %&gt;% kable(&quot;markdown&quot;)</code></pre>
 <tbody>
 <tr class="odd">
 <td align="left">200817_x_at</td>
-<td align="right">15.65254</td>
+<td align="right">15.67340</td>
 <td align="right">15.66252</td>
-<td align="right">541.1511</td>
+<td align="right">518.8035</td>
 <td align="right">0</td>
 <td align="right">0</td>
-<td align="right">76.88097</td>
+<td align="right">75.89779</td>
 </tr>
 <tr class="even">
 <td align="left">212391_x_at</td>
-<td align="right">15.72935</td>
+<td align="right">15.74824</td>
 <td align="right">15.73838</td>
-<td align="right">535.7102</td>
+<td align="right">513.5196</td>
 <td align="right">0</td>
 <td align="right">0</td>
-<td align="right">76.85626</td>
+<td align="right">75.87280</td>
 </tr>
 <tr class="odd">
 <td align="left">212284_x_at</td>
-<td align="right">15.64879</td>
+<td align="right">15.65463</td>
 <td align="right">15.65159</td>
-<td align="right">533.8926</td>
+<td align="right">511.3541</td>
 <td align="right">0</td>
 <td align="right">0</td>
-<td align="right">76.84785</td>
+<td align="right">75.86236</td>
 </tr>
 <tr class="even">
-<td align="left">212185_x_at</td>
-<td align="right">15.71314</td>
-<td align="right">15.69879</td>
-<td align="right">530.6296</td>
+<td align="left">217733_s_at</td>
+<td align="right">15.91063</td>
+<td align="right">15.90816</td>
+<td align="right">507.8101</td>
 <td align="right">0</td>
 <td align="right">0</td>
-<td align="right">76.83254</td>
+<td align="right">75.84499</td>
 </tr>
 <tr class="odd">
-<td align="left">217733_s_at</td>
-<td align="right">15.90590</td>
-<td align="right">15.90816</td>
-<td align="right">530.2325</td>
+<td align="left">212185_x_at</td>
+<td align="right">15.68315</td>
+<td align="right">15.69879</td>
+<td align="right">507.0695</td>
 <td align="right">0</td>
 <td align="right">0</td>
-<td align="right">76.83066</td>
+<td align="right">75.84132</td>
 </tr>
 <tr class="even">
 <td align="left">212790_x_at</td>
-<td align="right">15.68590</td>
+<td align="right">15.70471</td>
 <td align="right">15.69489</td>
-<td align="right">525.3697</td>
+<td align="right">503.6063</td>
 <td align="right">0</td>
 <td align="right">0</td>
-<td align="right">76.80731</td>
+<td align="right">75.82395</td>
 </tr>
 <tr class="odd">
 <td align="left">212661_x_at</td>
-<td align="right">15.69230</td>
+<td align="right">15.71348</td>
 <td align="right">15.70243</td>
-<td align="right">524.7771</td>
+<td align="right">503.1140</td>
 <td align="right">0</td>
 <td align="right">0</td>
-<td align="right">76.80442</td>
+<td align="right">75.82146</td>
 </tr>
 <tr class="even">
 <td align="left">211978_x_at</td>
-<td align="right">15.65500</td>
+<td align="right">15.66126</td>
 <td align="right">15.65800</td>
-<td align="right">522.5811</td>
+<td align="right">500.5335</td>
 <td align="right">0</td>
 <td align="right">0</td>
-<td align="right">76.79364</td>
+<td align="right">75.80826</td>
 </tr>
 <tr class="odd">
-<td align="left">200717_x_at</td>
-<td align="right">15.65782</td>
-<td align="right">15.66585</td>
-<td align="right">521.2726</td>
+<td align="left">213084_x_at</td>
+<td align="right">15.81458</td>
+<td align="right">15.78234</td>
+<td align="right">499.7829</td>
 <td align="right">0</td>
 <td align="right">0</td>
-<td align="right">76.78716</td>
+<td align="right">75.80439</td>
 </tr>
 <tr class="even">
-<td align="left">213084_x_at</td>
-<td align="right">15.75279</td>
-<td align="right">15.78234</td>
-<td align="right">519.9667</td>
+<td align="left">200717_x_at</td>
+<td align="right">15.67461</td>
+<td align="right">15.66585</td>
+<td align="right">499.6156</td>
 <td align="right">0</td>
 <td align="right">0</td>
-<td align="right">76.78064</td>
+<td align="right">75.80352</td>
 </tr>
 </tbody>
 </table>
-<p>In this model, we have ignored time as a covariate, comparing samples against each other just based on treatment group. In equation terms… <span class="math display">\[Y_g = X_g\alpha_g + \epsilon_g\]</span></p>
+<pre class="r"><code>results &lt;- decideTests(efit)
+vennDiagram(results)</code></pre>
+<p><img src="data:image/png;base64,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" alt /></p>
+<p>In this model, we have ignored time as a covariate, comparing samples against each other just based on treatment group. In equation terms… <span class="math display">\[Y_g = X\alpha_g + \epsilon_g\]</span></p>
+<p>Where:<br />
+Y = our responses<br />
+X = our design matrix:</p>
+<pre class="r"><code>design.matrix %&gt;% kable(&quot;markdown&quot;)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="right">CS</th>
+<th align="right">Control</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="right">1</td>
+<td align="right">0</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+</tbody>
+</table>
+<p>alpha = the parameters of our linear model<br />
+epsilon = the error of our samples</p>
+<p>If that equation isn’t formatting correctly, make sure you’re viewing the HTML version, not the .md version github has formatted.</p>
 <hr />
-<p>This page was last updated on Thursday, March 10, 2016 at 02:06PM</p>
+<p>This page was last updated on Thursday, March 10, 2016 at 02:59PM</p>
 </div>
 </div>
 

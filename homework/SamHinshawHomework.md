@@ -839,11 +839,45 @@ treatmentgroups <- design$Treatment
 # design.matrix <- model.matrix(~0+treat.and.hours)
 # design.matrix <- model.matrix(~treat.and.hours)
 design.matrix <- model.matrix(~0+treatmentgroups)
+colnames(design.matrix) <- c("CS", "Control")
+## Let's make sure this looks right:
+design.matrix %>% kable("markdown")
+```
+
+
+
+| CS| Control|
+|--:|-------:|
+|  0|       1|
+|  0|       1|
+|  0|       1|
+|  0|       1|
+|  0|       1|
+|  0|       1|
+|  0|       1|
+|  1|       0|
+|  1|       0|
+|  1|       0|
+|  0|       1|
+|  1|       0|
+|  1|       0|
+|  1|       0|
+|  1|       0|
+|  1|       0|
+|  0|       1|
+|  1|       0|
+|  1|       0|
+|  1|       0|
+|  0|       1|
+|  0|       1|
+|  0|       1|
+
+```r
 row.names(fitdata) <- fitdata$ProbeID
 fitdata$ProbeID <- NULL
 fit <- lmFit(fitdata, design.matrix)
 efit <- eBayes(fit)
-df <- topTable(efit, coef=2)
+df <- topTable(efit, coef=1, adjust = "BH")
 df %>% kable("markdown")
 ```
 
@@ -851,19 +885,68 @@ df %>% kable("markdown")
 
 |            |    logFC|  AveExpr|        t| P.Value| adj.P.Val|        B|
 |:-----------|--------:|--------:|--------:|-------:|---------:|--------:|
-|200817_x_at | 15.65254| 15.66252| 541.1511|       0|         0| 76.88097|
-|212391_x_at | 15.72935| 15.73838| 535.7102|       0|         0| 76.85626|
-|212284_x_at | 15.64879| 15.65159| 533.8926|       0|         0| 76.84785|
-|212185_x_at | 15.71314| 15.69879| 530.6296|       0|         0| 76.83254|
-|217733_s_at | 15.90590| 15.90816| 530.2325|       0|         0| 76.83066|
-|212790_x_at | 15.68590| 15.69489| 525.3697|       0|         0| 76.80731|
-|212661_x_at | 15.69230| 15.70243| 524.7771|       0|         0| 76.80442|
-|211978_x_at | 15.65500| 15.65800| 522.5811|       0|         0| 76.79364|
-|200717_x_at | 15.65782| 15.66585| 521.2726|       0|         0| 76.78716|
-|213084_x_at | 15.75279| 15.78234| 519.9667|       0|         0| 76.78064|
+|200817_x_at | 15.67340| 15.66252| 518.8035|       0|         0| 75.89779|
+|212391_x_at | 15.74824| 15.73838| 513.5196|       0|         0| 75.87280|
+|212284_x_at | 15.65463| 15.65159| 511.3541|       0|         0| 75.86236|
+|217733_s_at | 15.91063| 15.90816| 507.8101|       0|         0| 75.84499|
+|212185_x_at | 15.68315| 15.69879| 507.0695|       0|         0| 75.84132|
+|212790_x_at | 15.70471| 15.69489| 503.6063|       0|         0| 75.82395|
+|212661_x_at | 15.71348| 15.70243| 503.1140|       0|         0| 75.82146|
+|211978_x_at | 15.66126| 15.65800| 500.5335|       0|         0| 75.80826|
+|213084_x_at | 15.81458| 15.78234| 499.7829|       0|         0| 75.80439|
+|200717_x_at | 15.67461| 15.66585| 499.6156|       0|         0| 75.80352|
+
+```r
+results <- decideTests(efit)
+vennDiagram(results)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-9-1.png)
 
 In this model, we have ignored time as a covariate, comparing samples against each other just based on treatment group.  In equation terms...
-$$Y_g = X_g\alpha_g + \epsilon_g$$
+$$Y_g = X\alpha_g + \epsilon_g$$
+
+Where:  
+Y = our responses  
+X = our design matrix:   
+
+
+```r
+design.matrix %>% kable("markdown")
+```
+
+
+
+| CS| Control|
+|--:|-------:|
+|  0|       1|
+|  0|       1|
+|  0|       1|
+|  0|       1|
+|  0|       1|
+|  0|       1|
+|  0|       1|
+|  1|       0|
+|  1|       0|
+|  1|       0|
+|  0|       1|
+|  1|       0|
+|  1|       0|
+|  1|       0|
+|  1|       0|
+|  1|       0|
+|  0|       1|
+|  1|       0|
+|  1|       0|
+|  1|       0|
+|  0|       1|
+|  0|       1|
+|  0|       1|
+
+alpha = the parameters of our linear model  
+epsilon = the error of our samples  
+
+If that equation isn't formatting correctly, make sure you're viewing the HTML version, not the .md version github has formatted. 
 
 ********
-This page was last updated on  Thursday, March 10, 2016 at 02:06PM
+This page was last updated on  Thursday, March 10, 2016 at 02:59PM
