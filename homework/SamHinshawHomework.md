@@ -16,13 +16,13 @@ suppressPackageStartupMessages({
 	library(biomaRt)
 	library(magrittr)
 	library(devtools)
-	library(broom)
+	# library(broom)
 	library(ggplot2)
 	library(reshape2)
 	library(readr)
 	library(knitr)
-	library(xtable)
-	library(pander)
+	# library(xtable)
+	# library(pander)
 	library(tidyr)
 	library(RColorBrewer)
 	library(viridis)
@@ -42,8 +42,8 @@ packages %>%
 
 ```
 ##   package * version       date       source
-## 1   edgeR *  3.12.0 2015-12-17 Bioconductor
-## 2   limma *  3.26.7 2016-01-30 Bioconductor
+## 1   edgeR *  3.12.0 2016-03-12 Bioconductor
+## 2   limma *  3.26.8 2016-03-12 Bioconductor
 ```
 
 ```r
@@ -51,7 +51,7 @@ sessioninfo$platform$version
 ```
 
 ```
-## [1] "R version 3.2.3 (2015-12-10)"
+## [1] "R version 3.2.4 (2016-03-10)"
 ```
 
 Looks good, let's continue
@@ -640,8 +640,8 @@ joined_corr <- melted_corr %>%
 ```
 
 ```
-## Warning in inner_join_impl(x, y, by$x, by$y, suffix$x, suffix$y): joining
-## factor and character vector, coercing into character vector
+## Warning in inner_join_impl(x, y, by$x, by$y): joining factor and character
+## vector, coercing into character vector
 ```
 
 ```r
@@ -654,8 +654,8 @@ joined_corr %<>%
 ```
 
 ```
-## Warning in inner_join_impl(x, y, by$x, by$y, suffix$x, suffix$y): joining
-## factor and character vector, coercing into character vector
+## Warning in inner_join_impl(x, y, by$x, by$y): joining factor and character
+## vector, coercing into character vector
 ```
 
 ```r
@@ -796,13 +796,13 @@ joined_corr %>%
 |Treatment       | hours|  MeanCorr|
 |:---------------|-----:|---------:|
 |cigarette_smoke |     1| 0.9356879|
+|cigarette_smoke |     2| 0.9294967|
+|cigarette_smoke |    24| 0.9275695|
+|cigarette_smoke |     4| 0.9259581|
 |control         |     4| 0.9353380|
 |control         |    24| 0.9317074|
 |control         |     2| 0.9295345|
-|cigarette_smoke |     2| 0.9294967|
-|cigarette_smoke |    24| 0.9275695|
 |control         |     1| 0.9273158|
-|cigarette_smoke |     4| 0.9259581|
 
 Lastly, how does this outlier sample compare to specific treatments (This is a 1hr control sample). For this I'll filter out correlation with itself.
 
@@ -819,14 +819,14 @@ outliers %>%
 
 |Treatment2      | hours2|  MeanCorr|
 |:---------------|------:|---------:|
-|control         |      1| 0.9274908|
 |cigarette_smoke |      1| 0.9264554|
-|control         |     24| 0.9255085|
-|control         |      4| 0.9252802|
-|control         |      2| 0.9236324|
 |cigarette_smoke |      2| 0.9197050|
 |cigarette_smoke |      4| 0.9148929|
 |cigarette_smoke |     24| 0.9129820|
+|control         |      1| 0.9274908|
+|control         |     24| 0.9255085|
+|control         |      4| 0.9252802|
+|control         |      2| 0.9236324|
 
 At last, something meaningful!! This sample correlates MOST those samples within its own group, but also highly with the 1hr cigarette smoke group.  
 
@@ -837,9 +837,6 @@ At last, something meaningful!! This sample correlates MOST those samples within
 ```r
 row.names(fitdata) <- fitdata$ProbeID
 fitdata$ProbeID <- NULL
-# treat.and.hours <- factor(paste(design$Treatment,
-# 					  design$hours, sep = "_"))
-treatmentgroups <- design$Treatment
 ```
 
 
@@ -912,7 +909,9 @@ vennDiagram(results)
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-9-1.png)
 
 In this model, we have ignored time as a covariate, comparing samples against each other just based on treatment group.  In equation terms...
-$$Y_g = X\alpha_g + \epsilon_g$$
+$$Y = X\alpha + \epsilon$$
+<center> or </center>
+$$Y = \alpha  CigaretteSmoke + \beta  Control + \epsilon$$
 
 Where:  
 Y = our responses  
@@ -1011,7 +1010,18 @@ head(topTable.sig.fdr)
 ## 209020_at 209020_at
 ```
 
-Looks good so far!! Shout out to Louie for explaining that I needed to set up my contrast matrix.  So we've got 805 genes significant (`p < 1e-3`) with no adjustment, but just 43 after FDR adjustment.  
+Looks good so far!! Shout out to Louie for explaining that I needed to set up my contrast matrix.  So we've got 805 genes significant (`p < 1e-3`) with no adjustment, but just 43 after FDR adjustment.  Briefly, let's look at our p-value distribution, as recommended by Dr. Pavlidis.  
+
+
+```r
+p <- ggplot(topTable.sig.fdr, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 1e-3) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution of Significant Genes \n corrected with FDR = 0.05")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-12-1.png)
+
 
 >*Take the top 50 probes as your “hits” and create a heatmap of their expression levels. Sort the hits by p-values and the samples by treatment.*
 
@@ -1046,7 +1056,7 @@ topTable.sig.fdr.filtered
 ## 9  0.9256205 10.907060 7.729633 8.438527e-08 0.0001933190 8.000666
 ## 10 0.6366539  9.588851 7.726141 8.502396e-08 0.0001933190 7.993752
 ## ..       ...       ...      ...          ...          ...      ...
-## Variables not shown: ProbeID (chr).
+## Variables not shown: ProbeID (chr)
 ```
 
 ```r
@@ -1109,7 +1119,7 @@ topHits %<>%
 
 
 ```r
-heatmapcolors <- brewer.pal(9, "RdPu")
+# heatmapcolors <- brewer.pal(9, "RdPu")
 # heatmapcolorInterpolate <- colorRampPalette(heatmapcolors)
 # heatmapcolorInterpolated <- heatmapcolorInterpolate(nrow(topHits))
 ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) + 
@@ -1119,18 +1129,240 @@ ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) +
 	ylab("Ensembl Gene ID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-13-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-14-1.png)
 
 >*What is the (estimated) false discovery rate of this “hits” list? How many of these hits do we expect to be false discoveries?*
 
+Because we've set the p.value of our `topTable` output to 0.05 with an FDR adjustment (`topTable(efit, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")`), we would expect our adjusted values to have an FDR of 0.05.  This means that in a list of 50 genes, we would expect to see 2.5 genes as false discoveries. 
 
-For later...
+# 4 Differential expression with respect to time
+
+## 4.1 Linear model
+
+Let's pick up where we left off before 3.1, this time setting time in our design matrix.  
 
 ```r
 design.matrix.time <- model.matrix(~0+hours, design)
-design.matrix.combined <- model.matrix(~0 + Treatment * hours, design)
+# contrast.matrix.time <- makeContrasts(hours, levels = design.matrix.time) # this step is unnecessary!
+## Let's make sure this looks right:
+design.matrix.time %>% kable("markdown")
 ```
 
 
+
+| hours|
+|-----:|
+|    24|
+|     1|
+|     1|
+|     1|
+|     4|
+|     4|
+|     4|
+|     1|
+|     1|
+|     2|
+|    24|
+|     2|
+|     2|
+|     4|
+|     4|
+|     4|
+|    24|
+|    24|
+|    24|
+|    24|
+|     2|
+|     2|
+|     2|
+
+```r
+fit.time <- lmFit(fitdata, design.matrix.time)
+# fit <- contrasts.fit(fit, contrast.matrix.time) # this step is unnecessary!
+efit.time <- eBayes(fit.time)
+tT.time <- topTable(efit.time)
+tT.time %>% kable("markdown")
+```
+
+
+
+|            |     logFC|   AveExpr|        t|  P.Value| adj.P.Val|        B|
+|:-----------|---------:|---------:|--------:|--------:|---------:|--------:|
+|214290_s_at | 0.6723092| 12.362832| 4.760764| 4.42e-05| 0.0007126| 2.064841|
+|202627_s_at | 0.6679322| 12.323446| 4.737134| 4.72e-05| 0.0007126| 2.004786|
+|230710_at   | 0.4712516|  8.311076| 4.736658| 4.73e-05| 0.0007126| 2.003575|
+|209034_at   | 0.5617062| 10.188624| 4.725864| 4.87e-05| 0.0007126| 1.976149|
+|225239_at   | 0.5849378| 10.730673| 4.690227| 5.39e-05| 0.0007126| 1.885634|
+|202887_s_at | 0.7272043| 13.601392| 4.682904| 5.51e-05| 0.0007126| 1.867039|
+|231897_at   | 0.6797121| 12.646206| 4.682150| 5.52e-05| 0.0007126| 1.865124|
+|208937_s_at | 0.6587396| 12.243896| 4.672636| 5.67e-05| 0.0007126| 1.840972|
+|239272_at   | 0.5022195|  9.068385| 4.665381| 5.79e-05| 0.0007126| 1.822557|
+|202628_s_at | 0.6737343| 12.568522| 4.662056| 5.84e-05| 0.0007126| 1.814118|
+
+```r
+results.time <- decideTests(efit.time)
+vennDiagram(results.time)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-15-1.png)
+
+Interesting so far, let's continue.
+
+```r
+topTable.time <- topTable(efit.time, adjust = "none", number = Inf, p.value = 1e-3)
+# here, we should see that P.Value = adj.P.Val
+head(topTable.time)
+```
+
+```
+##                 logFC   AveExpr        t      P.Value    adj.P.Val
+## 214290_s_at 0.6723092 12.362832 4.760764 4.415576e-05 4.415576e-05
+## 202627_s_at 0.6679322 12.323446 4.737134 4.721622e-05 4.721622e-05
+## 230710_at   0.4712516  8.311076 4.736658 4.728005e-05 4.728005e-05
+## 209034_at   0.5617062 10.188624 4.725864 4.874927e-05 4.874927e-05
+## 225239_at   0.5849378 10.730673 4.690228 5.392977e-05 5.392977e-05
+## 202887_s_at 0.7272043 13.601392 4.682904 5.506032e-05 5.506032e-05
+##                    B
+## 214290_s_at 2.064841
+## 202627_s_at 2.004786
+## 230710_at   2.003575
+## 209034_at   1.976149
+## 225239_at   1.885634
+## 202887_s_at 1.867039
+```
+
+```r
+nrow(topTable.time)
+```
+
+```
+## [1] 17111
+```
+
+```r
+p <- ggplot(topTable.time, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 1e-3) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution of Significant Genes") + xlim(0, 0.05)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-16-1.png)
+
+```r
+topTable.time$ProbeID <- row.names(topTable.time)
+topTable.time.sig.fdr <- topTable(efit.time, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+topTable.time.sig.fdr$ProbeID <- row.names(topTable.time.sig.fdr)
+nrow(topTable.time.sig.fdr)
+```
+
+```
+## [1] 22735
+```
+
+```r
+head(topTable.time.sig.fdr)
+```
+
+```
+##                 logFC   AveExpr        t      P.Value    adj.P.Val
+## 214290_s_at 0.6723092 12.362832 4.760764 4.415576e-05 0.0007126206
+## 202627_s_at 0.6679322 12.323446 4.737134 4.721622e-05 0.0007126206
+## 230710_at   0.4712516  8.311076 4.736658 4.728005e-05 0.0007126206
+## 209034_at   0.5617062 10.188624 4.725864 4.874927e-05 0.0007126206
+## 225239_at   0.5849378 10.730673 4.690228 5.392977e-05 0.0007126206
+## 202887_s_at 0.7272043 13.601392 4.682904 5.506032e-05 0.0007126206
+##                    B     ProbeID
+## 214290_s_at 2.064841 214290_s_at
+## 202627_s_at 2.004786 202627_s_at
+## 230710_at   2.003575   230710_at
+## 209034_at   1.976149   209034_at
+## 225239_at   1.885634   225239_at
+## 202887_s_at 1.867039 202887_s_at
+```
+
+```r
+p <- ggplot(topTable.time.sig.fdr, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 1e-3) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution of Significant Genes \n corrected with FDR = 0.05")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-16-2.png)
+
+Interesting, I'm glad I plotted that since it doesn't seem right.  Still, we expect these genes to all be different from each other in some way, so it's also not impossible. It's hard, since I don't really know what to even expect...
+
+Let's go straight to question 5 and come back to this one.  
+
+# 5 Differential expression analysis with a full model
+
+## 5.1 Quantify the number of hits for treatment
+
+```r
+design.matrix.combined <- model.matrix(~0 + Treatment * hours, design)
+colnames(design.matrix.combined) <- c("cs", "control", "hours", "control.hours")
+contrast.matrix.combined <- makeContrasts(cs-control, cs-control.hours, levels = design.matrix.combined) # this step is unnecessary!
+## Let's make sure this looks right:
+design.matrix.combined %>% kable("markdown")
+```
+
+
+
+| cs| control| hours| control.hours|
+|--:|-------:|-----:|-------------:|
+|  0|       1|    24|            24|
+|  0|       1|     1|             1|
+|  0|       1|     1|             1|
+|  0|       1|     1|             1|
+|  0|       1|     4|             4|
+|  0|       1|     4|             4|
+|  0|       1|     4|             4|
+|  1|       0|     1|             0|
+|  1|       0|     1|             0|
+|  1|       0|     2|             0|
+|  0|       1|    24|            24|
+|  1|       0|     2|             0|
+|  1|       0|     2|             0|
+|  1|       0|     4|             0|
+|  1|       0|     4|             0|
+|  1|       0|     4|             0|
+|  0|       1|    24|            24|
+|  1|       0|    24|             0|
+|  1|       0|    24|             0|
+|  1|       0|    24|             0|
+|  0|       1|     2|             2|
+|  0|       1|     2|             2|
+|  0|       1|     2|             2|
+
+```r
+fit.combined <- lmFit(fitdata, design.matrix.combined)
+fit.combined <- contrasts.fit(fit.combined, contrast.matrix.combined) # this step is unnecessary!
+efit.combined <- eBayes(fit.combined)
+tT.combined <- topTable(efit.combined)
+tT.combined %>% kable("markdown")
+```
+
+
+
+|            | cs...control| cs...control.hours|  AveExpr|        F| P.Value| adj.P.Val|
+|:-----------|------------:|------------------:|--------:|--------:|-------:|---------:|
+|200817_x_at |    0.0149055|           15.67659| 15.66252| 205448.4|       0|         0|
+|212661_x_at |    0.0149566|           15.73017| 15.70243| 200929.2|       0|         0|
+|212391_x_at |    0.0077494|           15.73849| 15.73838| 199216.9|       0|         0|
+|212284_x_at |    0.0046001|           15.64491| 15.65159| 198922.2|       0|         0|
+|200717_x_at |    0.0515706|           15.68822| 15.66585| 193992.2|       0|         0|
+|211378_x_at |   -0.0143710|           15.61472| 15.60092| 193055.7|       0|         0|
+|212185_x_at |   -0.0233651|           15.68277| 15.69879| 192327.3|       0|         0|
+|217733_s_at |    0.0174869|           15.91618| 15.90816| 191398.0|       0|         0|
+|211978_x_at |    0.0059078|           15.67051| 15.65800| 187939.0|       0|         0|
+|212790_x_at |    0.0217819|           15.70484| 15.69489| 187452.5|       0|         0|
+
+```r
+results.combined <- decideTests(efit.combined)
+vennDiagram(results.combined)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-17-1.png)
+
+
 ********
-This page was last updated on  Friday, March 11, 2016 at 09:36PM
+This page was last updated on  Friday, March 11, 2016 at 11:52PM

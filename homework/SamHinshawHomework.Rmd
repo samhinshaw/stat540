@@ -24,13 +24,13 @@ suppressPackageStartupMessages({
 	library(biomaRt)
 	library(magrittr)
 	library(devtools)
-	library(broom)
+	# library(broom)
 	library(ggplot2)
 	library(reshape2)
 	library(readr)
 	library(knitr)
-	library(xtable)
-	library(pander)
+	# library(xtable)
+	# library(pander)
 	library(tidyr)
 	library(RColorBrewer)
 	library(viridis)
@@ -430,9 +430,6 @@ At last, something meaningful!! This sample correlates MOST those samples within
 ```{r}
 row.names(fitdata) <- fitdata$ProbeID
 fitdata$ProbeID <- NULL
-# treat.and.hours <- factor(paste(design$Treatment,
-# 					  design$hours, sep = "_"))
-treatmentgroups <- design$Treatment
 ```
 
 ```{r}
@@ -453,7 +450,9 @@ vennDiagram(results)
 ```
 
 In this model, we have ignored time as a covariate, comparing samples against each other just based on treatment group.  In equation terms...
-$$Y_g = X\alpha_g + \epsilon_g$$
+$$Y = X\alpha + \epsilon$$
+<center> or </center>
+$$Y = \alpha  CigaretteSmoke + \beta  Control + \epsilon$$
 
 Where:  
 Y = our responses  
@@ -485,7 +484,15 @@ nrow(topTable.sig.fdr)
 head(topTable.sig.fdr)
 ```
 
-Looks good so far!! Shout out to Louie for explaining that I needed to set up my contrast matrix.  So we've got 805 genes significant (`p < 1e-3`) with no adjustment, but just 43 after FDR adjustment.  
+Looks good so far!! Shout out to Louie for explaining that I needed to set up my contrast matrix.  So we've got 805 genes significant (`p < 1e-3`) with no adjustment, but just 43 after FDR adjustment.  Briefly, let's look at our p-value distribution, as recommended by Dr. Pavlidis.  
+
+```{r}
+p <- ggplot(topTable.sig.fdr, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 1e-3) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution of Significant Genes \n corrected with FDR = 0.05")
+```
+
 
 >*Take the top 50 probes as your “hits” and create a heatmap of their expression levels. Sort the hits by p-values and the samples by treatment.*
 
@@ -527,8 +534,8 @@ topHits %<>%
 ```
 
 
-```{r}
-heatmapcolors <- brewer.pal(9, "RdPu")
+```{r, fig.height = 8, fig.width = 6}
+# heatmapcolors <- brewer.pal(9, "RdPu")
 # heatmapcolorInterpolate <- colorRampPalette(heatmapcolors)
 # heatmapcolorInterpolated <- heatmapcolorInterpolate(nrow(topHits))
 ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) + 
@@ -540,11 +547,71 @@ ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) +
 
 >*What is the (estimated) false discovery rate of this “hits” list? How many of these hits do we expect to be false discoveries?*
 
+Because we've set the p.value of our `topTable` output to 0.05 with an FDR adjustment (`topTable(efit, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")`), we would expect our adjusted values to have an FDR of 0.05.  This means that in a list of 50 genes, we would expect to see 2.5 genes as false discoveries. 
 
-For later...
+# 4 Differential expression with respect to time
+
+## 4.1 Linear model
+
+Let's pick up where we left off before 3.1, this time setting time in our design matrix.  
 ```{r}
 design.matrix.time <- model.matrix(~0+hours, design)
+# contrast.matrix.time <- makeContrasts(hours, levels = design.matrix.time) # this step is unnecessary!
+## Let's make sure this looks right:
+design.matrix.time %>% kable("markdown")
+fit.time <- lmFit(fitdata, design.matrix.time)
+# fit <- contrasts.fit(fit, contrast.matrix.time) # this step is unnecessary!
+efit.time <- eBayes(fit.time)
+tT.time <- topTable(efit.time)
+tT.time %>% kable("markdown")
+results.time <- decideTests(efit.time)
+vennDiagram(results.time)
+```
+
+Interesting so far, let's continue.
+```{r}
+topTable.time <- topTable(efit.time, adjust = "none", number = Inf, p.value = 1e-3)
+# here, we should see that P.Value = adj.P.Val
+head(topTable.time)
+nrow(topTable.time)
+
+p <- ggplot(topTable.time, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 1e-3) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution of Significant Genes") + xlim(0, 0.05)
+
+topTable.time$ProbeID <- row.names(topTable.time)
+topTable.time.sig.fdr <- topTable(efit.time, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+topTable.time.sig.fdr$ProbeID <- row.names(topTable.time.sig.fdr)
+nrow(topTable.time.sig.fdr)
+head(topTable.time.sig.fdr)
+
+p <- ggplot(topTable.time.sig.fdr, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 1e-3) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution of Significant Genes \n corrected with FDR = 0.05")
+```
+
+Interesting, I'm glad I plotted that since it doesn't seem right.  Still, we expect these genes to all be different from each other in some way, so it's also not impossible. It's hard, since I don't really know what to even expect...
+
+Let's go straight to question 5 and come back to this one.  
+
+# 5 Differential expression analysis with a full model
+
+## 5.1 Quantify the number of hits for treatment
+```{r}
 design.matrix.combined <- model.matrix(~0 + Treatment * hours, design)
+colnames(design.matrix.combined) <- c("cs", "control", "hours", "control.hours")
+contrast.matrix.combined <- makeContrasts(cs-control, cs-control.hours, levels = design.matrix.combined) # this step is unnecessary!
+## Let's make sure this looks right:
+design.matrix.combined %>% kable("markdown")
+fit.combined <- lmFit(fitdata, design.matrix.combined)
+fit.combined <- contrasts.fit(fit.combined, contrast.matrix.combined) # this step is unnecessary!
+efit.combined <- eBayes(fit.combined)
+tT.combined <- topTable(efit.combined)
+tT.combined %>% kable("markdown")
+results.combined <- decideTests(efit.combined)
+vennDiagram(results.combined)
 ```
 
 
