@@ -33,6 +33,7 @@ suppressPackageStartupMessages({
 	library(pander)
 	library(tidyr)
 	library(RColorBrewer)
+	library(viridis)
 	library(dplyr)
 })
 ```
@@ -196,6 +197,10 @@ head(affy_probe_IDs)
 colnames(affy_probe_IDs) <- c("ensembl_gene_id", "ProbeID")
 data <- inner_join(data, affy_probe_IDs, by = "ProbeID")
 glimpse(data)
+
+affy_probe_IDs_hgnc <- getBM(attributes = c("hgnc_symbol", "affy_hg_u133_plus_2"), filters = "affy_hg_u133_plus_2", values = data$ProbeID, mart = ensembl) # query the probeIDs
+colnames(affy_probe_IDs_hgnc) <- c("hgnc_symbol", "ProbeID")
+
 ```
 Now we can `gather()` our data for easy plotting, and even join our design data as well. 
 ```{r gather data}
@@ -423,6 +428,8 @@ At last, something meaningful!! This sample correlates MOST those samples within
 
 ## 3.1 Linear Model
 ```{r}
+row.names(fitdata) <- fitdata$ProbeID
+fitdata$ProbeID <- NULL
 # treat.and.hours <- factor(paste(design$Treatment,
 # 					  design$hours, sep = "_"))
 treatmentgroups <- design$Treatment
@@ -431,17 +438,17 @@ treatmentgroups <- design$Treatment
 ```{r}
 # design.matrix <- model.matrix(~0+treat.and.hours)
 # design.matrix <- model.matrix(~treat.and.hours)
-design.matrix <- model.matrix(~0+treatmentgroups)
+design.matrix <- model.matrix(~0+Treatment, design)
 colnames(design.matrix) <- c("CS", "Control")
+contrast.matrix <- makeContrasts(CS-Control, levels = design.matrix)
 ## Let's make sure this looks right:
 design.matrix %>% kable("markdown")
-row.names(fitdata) <- fitdata$ProbeID
-fitdata$ProbeID <- NULL
 fit <- lmFit(fitdata, design.matrix)
+fit <- contrasts.fit(fit, contrast.matrix)
 efit <- eBayes(fit)
 df <- topTable(efit, coef=1, adjust = "BH")
 df %>% kable("markdown")
-results <- decideTests(efit)
+results <- decideTests(efit, adjust.method = "BH", lfc = 2)
 vennDiagram(results)
 ```
 
@@ -460,6 +467,86 @@ alpha = the parameters of our linear model
 epsilon = the error of our samples  
 
 If that equation isn't formatting correctly, make sure you're viewing the HTML version, not the .md version github has formatted. 
+
+
+## 3.2 Hits in Linear Model
+
+Okay, so it looks like we've got about 36 interesting genes. 
+
+First let's take a look at our hits and see how many results we've got with `p < 1e-3`. First we want to see without any adjustment, and then with the FDR adjustment.  
+```{r}
+topTable.test <- topTable(efit, adjust = "none", number = Inf, p.value = 1e-3)
+# here, we should see that P.Value = adj.P.Val
+head(topTable.test)
+topTable.test$ProbeID <- row.names(topTable.test)
+topTable.sig.fdr <- topTable(efit, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+topTable.sig.fdr$ProbeID <- row.names(topTable.sig.fdr)
+nrow(topTable.sig.fdr)
+head(topTable.sig.fdr)
+```
+
+Looks good so far!! Shout out to Louie for explaining that I needed to set up my contrast matrix.  So we've got 805 genes significant (`p < 1e-3`) with no adjustment, but just 43 after FDR adjustment.  
+
+>*Take the top 50 probes as your “hits” and create a heatmap of their expression levels. Sort the hits by p-values and the samples by treatment.*
+
+Okay, so we've got 1238 hits, let's take the top 50 hits, and then we should go back to our data and filter by the probeIDs. 
+```{r}
+# gathered_data2 <- data %>% 
+# 	gather("InternalID", "intensity", 2:24)
+# glimpse(gathered_data2)
+# gathered_data2 <- inner_join(gathered_data2, design, by = "InternalID")
+# glimpse(gathered_data2)
+gathered_data %<>% 
+	mutate(qualitative = paste0(Treatment, "_", as.character(hours), "_", ExternalID))
+topTable.sig.fdr.filtered <- topTable.sig.fdr %>% 
+	head(n = 50) %>% tbl_df()
+topTable.sig.fdr.filtered
+topHits <- gathered_data %>% 
+	filter(ProbeID %in% topTable.sig.fdr.filtered$ProbeID)
+nrow(topHits)
+
+topHits <- inner_join(topHits, topTable.sig.fdr.filtered, by = "ProbeID")
+topHits <- left_join(topHits, affy_probe_IDs_hgnc, by = "ProbeID")
+
+glimpse(topHits)
+topHits$qualitative %<>% as.factor()
+topHits %<>% 
+	arrange(Treatment)
+topHits$treatment.factor <- 1:nrow(topHits)
+topHits %<>% 
+	mutate(qualitative = reorder(qualitative, treatment.factor, max))
+topHits %<>% 
+	mutate(hgnc_p.value = paste0(hgnc_symbol, "(", 
+								 format(round(adj.P.Val, 4), scientific = TRUE), 
+								 ")"))
+topHits %<>% 
+	arrange(adj.P.Val)
+topHits$hgnc_p.value %<>% as.factor()
+topHits %<>% 
+	mutate(hgnc_p.value = reorder(hgnc_p.value, -adj.P.Val, max))
+```
+
+
+```{r}
+heatmapcolors <- brewer.pal(9, "RdPu")
+# heatmapcolorInterpolate <- colorRampPalette(heatmapcolors)
+# heatmapcolorInterpolated <- heatmapcolorInterpolate(nrow(topHits))
+ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_viridis() + xlab("Sample") +
+	ylab("Ensembl Gene ID")
+```
+
+>*What is the (estimated) false discovery rate of this “hits” list? How many of these hits do we expect to be false discoveries?*
+
+
+For later...
+```{r}
+design.matrix.time <- model.matrix(~0+hours, design)
+design.matrix.combined <- model.matrix(~0 + Treatment * hours, design)
+```
+
 
 ********
 This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`

@@ -25,6 +25,7 @@ suppressPackageStartupMessages({
 	library(pander)
 	library(tidyr)
 	library(RColorBrewer)
+	library(viridis)
 	library(dplyr)
 })
 ```
@@ -423,6 +424,11 @@ glimpse(data)
 ## $ GSE10718_Biomat_8  (dbl) 7.509491, 7.509491, 6.534320, 6.613354, 6.5...
 ## $ GSE10718_Biomat_9  (dbl) 7.735819, 7.735819, 6.888977, 6.708225, 7.0...
 ## $ ensembl_gene_id    (chr) "ENSG00000263506", "ENSG00000182179", "ENSG...
+```
+
+```r
+affy_probe_IDs_hgnc <- getBM(attributes = c("hgnc_symbol", "affy_hg_u133_plus_2"), filters = "affy_hg_u133_plus_2", values = data$ProbeID, mart = ensembl) # query the probeIDs
+colnames(affy_probe_IDs_hgnc) <- c("hgnc_symbol", "ProbeID")
 ```
 Now we can `gather()` our data for easy plotting, and even join our design data as well. 
 
@@ -829,6 +835,8 @@ At last, something meaningful!! This sample correlates MOST those samples within
 ## 3.1 Linear Model
 
 ```r
+row.names(fitdata) <- fitdata$ProbeID
+fitdata$ProbeID <- NULL
 # treat.and.hours <- factor(paste(design$Treatment,
 # 					  design$hours, sep = "_"))
 treatmentgroups <- design$Treatment
@@ -838,8 +846,9 @@ treatmentgroups <- design$Treatment
 ```r
 # design.matrix <- model.matrix(~0+treat.and.hours)
 # design.matrix <- model.matrix(~treat.and.hours)
-design.matrix <- model.matrix(~0+treatmentgroups)
+design.matrix <- model.matrix(~0+Treatment, design)
 colnames(design.matrix) <- c("CS", "Control")
+contrast.matrix <- makeContrasts(CS-Control, levels = design.matrix)
 ## Let's make sure this looks right:
 design.matrix %>% kable("markdown")
 ```
@@ -873,9 +882,8 @@ design.matrix %>% kable("markdown")
 |  0|       1|
 
 ```r
-row.names(fitdata) <- fitdata$ProbeID
-fitdata$ProbeID <- NULL
 fit <- lmFit(fitdata, design.matrix)
+fit <- contrasts.fit(fit, contrast.matrix)
 efit <- eBayes(fit)
 df <- topTable(efit, coef=1, adjust = "BH")
 df %>% kable("markdown")
@@ -883,21 +891,21 @@ df %>% kable("markdown")
 
 
 
-|            |    logFC|  AveExpr|        t| P.Value| adj.P.Val|        B|
-|:-----------|--------:|--------:|--------:|-------:|---------:|--------:|
-|200817_x_at | 15.67340| 15.66252| 518.8035|       0|         0| 75.89779|
-|212391_x_at | 15.74824| 15.73838| 513.5196|       0|         0| 75.87280|
-|212284_x_at | 15.65463| 15.65159| 511.3541|       0|         0| 75.86236|
-|217733_s_at | 15.91063| 15.90816| 507.8101|       0|         0| 75.84499|
-|212185_x_at | 15.68315| 15.69879| 507.0695|       0|         0| 75.84132|
-|212790_x_at | 15.70471| 15.69489| 503.6063|       0|         0| 75.82395|
-|212661_x_at | 15.71348| 15.70243| 503.1140|       0|         0| 75.82146|
-|211978_x_at | 15.66126| 15.65800| 500.5335|       0|         0| 75.80826|
-|213084_x_at | 15.81458| 15.78234| 499.7829|       0|         0| 75.80439|
-|200717_x_at | 15.67461| 15.66585| 499.6156|       0|         0| 75.80352|
+|            |     logFC|   AveExpr|        t| P.Value| adj.P.Val|        B|
+|:-----------|---------:|---------:|--------:|-------:|---------:|--------:|
+|200779_at   | 0.7613410| 13.983184| 8.577428|   0e+00| 0.0001751| 9.623149|
+|202912_at   | 1.7199499| 12.764302| 8.161121|   0e+00| 0.0001751| 8.840436|
+|214696_at   | 1.9074941| 11.730937| 8.155235|   0e+00| 0.0001751| 8.829176|
+|223394_at   | 1.2644771| 10.909886| 8.147206|   0e+00| 0.0001751| 8.813808|
+|223774_at   | 1.1696606|  9.529931| 8.080341|   0e+00| 0.0001751| 8.685431|
+|209020_at   | 1.0223766| 10.677979| 7.939997|   1e-07| 0.0001751| 8.413709|
+|202672_s_at | 3.5302487|  9.716310| 7.904577|   1e-07| 0.0001751| 8.344646|
+|220468_at   | 2.4132680|  6.488711| 7.876047|   1e-07| 0.0001751| 8.288875|
+|223982_s_at | 0.9256205| 10.907060| 7.729633|   1e-07| 0.0001933| 8.000666|
+|226924_at   | 0.6366539|  9.588850| 7.726141|   1e-07| 0.0001933| 7.993752|
 
 ```r
-results <- decideTests(efit)
+results <- decideTests(efit, adjust.method = "BH", lfc = 2)
 vennDiagram(results)
 ```
 
@@ -948,5 +956,181 @@ epsilon = the error of our samples
 
 If that equation isn't formatting correctly, make sure you're viewing the HTML version, not the .md version github has formatted. 
 
+
+## 3.2 Hits in Linear Model
+
+Okay, so it looks like we've got about 36 interesting genes. 
+
+First let's take a look at our hits and see how many results we've got with `p < 1e-3`. First we want to see without any adjustment, and then with the FDR adjustment.  
+
+```r
+topTable.test <- topTable(efit, adjust = "none", number = Inf, p.value = 1e-3)
+# here, we should see that P.Value = adj.P.Val
+head(topTable.test)
+```
+
+```
+##              logFC   AveExpr        t      P.Value    adj.P.Val        B
+## 200779_at 0.761341 13.983184 8.577428 1.419183e-08 1.419183e-08 9.623149
+## 202912_at 1.719950 12.764302 8.161121 3.365296e-08 3.365296e-08 8.840436
+## 214696_at 1.907494 11.730937 8.155234 3.407195e-08 3.407195e-08 8.829176
+## 223394_at 1.264477 10.909886 8.147206 3.465212e-08 3.465212e-08 8.813808
+## 223774_at 1.169661  9.529931 8.080341 3.989741e-08 3.989741e-08 8.685431
+## 209020_at 1.022377 10.677979 7.939997 5.373691e-08 5.373691e-08 8.413709
+```
+
+```r
+topTable.test$ProbeID <- row.names(topTable.test)
+topTable.sig.fdr <- topTable(efit, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+topTable.sig.fdr$ProbeID <- row.names(topTable.sig.fdr)
+nrow(topTable.sig.fdr)
+```
+
+```
+## [1] 1238
+```
+
+```r
+head(topTable.sig.fdr)
+```
+
+```
+##              logFC   AveExpr        t      P.Value    adj.P.Val        B
+## 200779_at 0.761341 13.983184 8.577428 1.419183e-08 0.0001750755 9.623149
+## 202912_at 1.719950 12.764302 8.161121 3.365296e-08 0.0001750755 8.840436
+## 214696_at 1.907494 11.730937 8.155234 3.407195e-08 0.0001750755 8.829176
+## 223394_at 1.264477 10.909886 8.147206 3.465212e-08 0.0001750755 8.813808
+## 223774_at 1.169661  9.529931 8.080341 3.989741e-08 0.0001750755 8.685431
+## 209020_at 1.022377 10.677979 7.939997 5.373691e-08 0.0001750755 8.413709
+##             ProbeID
+## 200779_at 200779_at
+## 202912_at 202912_at
+## 214696_at 214696_at
+## 223394_at 223394_at
+## 223774_at 223774_at
+## 209020_at 209020_at
+```
+
+Looks good so far!! Shout out to Louie for explaining that I needed to set up my contrast matrix.  So we've got 805 genes significant (`p < 1e-3`) with no adjustment, but just 43 after FDR adjustment.  
+
+>*Take the top 50 probes as your “hits” and create a heatmap of their expression levels. Sort the hits by p-values and the samples by treatment.*
+
+Okay, so we've got 1238 hits, let's take the top 50 hits, and then we should go back to our data and filter by the probeIDs. 
+
+```r
+# gathered_data2 <- data %>% 
+# 	gather("InternalID", "intensity", 2:24)
+# glimpse(gathered_data2)
+# gathered_data2 <- inner_join(gathered_data2, design, by = "InternalID")
+# glimpse(gathered_data2)
+gathered_data %<>% 
+	mutate(qualitative = paste0(Treatment, "_", as.character(hours), "_", ExternalID))
+topTable.sig.fdr.filtered <- topTable.sig.fdr %>% 
+	head(n = 50) %>% tbl_df()
+topTable.sig.fdr.filtered
+```
+
+```
+## Source: local data frame [50 x 7]
+## 
+##        logFC   AveExpr        t      P.Value    adj.P.Val        B
+##        (dbl)     (dbl)    (dbl)        (dbl)        (dbl)    (dbl)
+## 1  0.7613410 13.983184 8.577428 1.419183e-08 0.0001750755 9.623149
+## 2  1.7199499 12.764302 8.161121 3.365296e-08 0.0001750755 8.840436
+## 3  1.9074941 11.730937 8.155234 3.407195e-08 0.0001750755 8.829176
+## 4  1.2644771 10.909886 8.147206 3.465212e-08 0.0001750755 8.813808
+## 5  1.1696606  9.529931 8.080341 3.989741e-08 0.0001750755 8.685431
+## 6  1.0223766 10.677979 7.939997 5.373691e-08 0.0001750755 8.413709
+## 7  3.5302487  9.716310 7.904577 5.795528e-08 0.0001750755 8.344646
+## 8  2.4132680  6.488711 7.876047 6.160022e-08 0.0001750755 8.288875
+## 9  0.9256205 10.907060 7.729633 8.438527e-08 0.0001933190 8.000666
+## 10 0.6366539  9.588851 7.726141 8.502396e-08 0.0001933190 7.993752
+## ..       ...       ...      ...          ...          ...      ...
+## Variables not shown: ProbeID (chr).
+```
+
+```r
+topHits <- gathered_data %>% 
+	filter(ProbeID %in% topTable.sig.fdr.filtered$ProbeID)
+nrow(topHits)
+```
+
+```
+## [1] 1196
+```
+
+```r
+topHits <- inner_join(topHits, topTable.sig.fdr.filtered, by = "ProbeID")
+topHits <- left_join(topHits, affy_probe_IDs_hgnc, by = "ProbeID")
+
+glimpse(topHits)
+```
+
+```
+## Observations: 1,357
+## Variables: 17
+## $ ProbeID         (chr) "1554980_a_at", "200779_at", "200779_at", "200...
+## $ ensembl_gene_id (chr) "ENSG00000162772", "ENSG00000128272", "ENSG000...
+## $ InternalID      (chr) "GSE10718_Biomat_1", "GSE10718_Biomat_1", "GSE...
+## $ intensity       (dbl) 6.225141, 13.810016, 13.810016, 13.810016, 13....
+## $ ExternalID      (chr) "GSM270883", "GSM270883", "GSM270883", "GSM270...
+## $ Treatment       (fctr) control, control, control, control, control, ...
+## $ time            (fctr) 24_h, 24_h, 24_h, 24_h, 24_h, 24_h, 24_h, 24_...
+## $ hours           (dbl) 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24...
+## $ perm            (chr) "control_24_h", "control_24_h", "control_24_h"...
+## $ qualitative     (chr) "control_24_GSM270883", "control_24_GSM270883"...
+## $ logFC           (dbl) 2.3803868, 0.7613410, 0.7613410, 0.7613410, 0....
+## $ AveExpr         (dbl) 8.666117, 13.983184, 13.983184, 13.983184, 13....
+## $ t               (dbl) 6.552242, 8.577428, 8.577428, 8.577428, 8.5774...
+## $ P.Value         (dbl) 1.175071e-06, 1.419183e-08, 1.419183e-08, 1.41...
+## $ adj.P.Val       (dbl) 0.0007458854, 0.0001750755, 0.0001750755, 0.00...
+## $ B               (dbl) 5.564050, 9.623149, 9.623149, 9.623149, 9.6231...
+## $ hgnc_symbol     (chr) "ATF3", "ATF4P3", "ATF4", "ATF4P3", "ATF4", "E...
+```
+
+```r
+topHits$qualitative %<>% as.factor()
+topHits %<>% 
+	arrange(Treatment)
+topHits$treatment.factor <- 1:nrow(topHits)
+topHits %<>% 
+	mutate(qualitative = reorder(qualitative, treatment.factor, max))
+topHits %<>% 
+	mutate(hgnc_p.value = paste0(hgnc_symbol, "(", 
+								 format(round(adj.P.Val, 4), scientific = TRUE), 
+								 ")"))
+topHits %<>% 
+	arrange(adj.P.Val)
+topHits$hgnc_p.value %<>% as.factor()
+topHits %<>% 
+	mutate(hgnc_p.value = reorder(hgnc_p.value, -adj.P.Val, max))
+```
+
+
+
+```r
+heatmapcolors <- brewer.pal(9, "RdPu")
+# heatmapcolorInterpolate <- colorRampPalette(heatmapcolors)
+# heatmapcolorInterpolated <- heatmapcolorInterpolate(nrow(topHits))
+ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_viridis() + xlab("Sample") +
+	ylab("Ensembl Gene ID")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-13-1.png)
+
+>*What is the (estimated) false discovery rate of this “hits” list? How many of these hits do we expect to be false discoveries?*
+
+
+For later...
+
+```r
+design.matrix.time <- model.matrix(~0+hours, design)
+design.matrix.combined <- model.matrix(~0 + Treatment * hours, design)
+```
+
+
 ********
-This page was last updated on  Thursday, March 10, 2016 at 02:59PM
+This page was last updated on  Friday, March 11, 2016 at 09:36PM
