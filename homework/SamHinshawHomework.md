@@ -21,12 +21,15 @@ suppressPackageStartupMessages({
 	library(reshape2)
 	library(readr)
 	library(knitr)
+	library(ggbiplot) # devtools::install_github("vqv/ggbiplot")
+	library(FactoMineR) # install.packages("FactoMineR", dependencies = TRUE)
 	# library(xtable)
 	# library(pander)
 	library(tidyr)
 	library(RColorBrewer)
 	library(viridis)
 	library(dplyr)
+	library(cowplot)
 })
 ```
 
@@ -486,7 +489,7 @@ And now, the plot.  First with time-coding...
 p <- ggplot(gathered_data, aes(x = intensity))
 p + geom_density(aes(fill = time)) + 
 	scale_fill_manual(values = timepoints) + xlab("log2 intensity") + ylab("Frequency") + 
-	facet_wrap( ~ InternalID, ncol = 5) + ggtitle("Log2 Intensities of Samples in GSE10718")
+	facet_wrap( ~ ExternalID, ncol = 5) + ggtitle("Log2 Intensities of Samples in GSE10718")
 ```
 
 ![](SamHinshawHomework_files/figure-html/intensity plot faceted time-coded-1.png)
@@ -497,7 +500,7 @@ p + geom_density(aes(fill = time)) +
 p <- ggplot(gathered_data, aes(x = intensity))
 p + geom_density(aes(fill = Treatment)) + 
 	scale_fill_manual(values = treatments) + xlab("log2 intensity") + ylab("Frequency") + 
-	facet_wrap( ~ InternalID, ncol = 5) + ggtitle("Log2 Intensities of Samples in GSE10718")
+	facet_wrap( ~ ExternalID, ncol = 5) + ggtitle("Log2 Intensities of Samples in GSE10718")
 ```
 
 ![](SamHinshawHomework_files/figure-html/intensity plot faceted Treatment-coded-1.png)
@@ -535,8 +538,7 @@ Okay, so we see we've got pretty similar intensities throughout the samples.  Bu
 
 ```r
 ggplot(data = singleprobe, aes(y = intensity, x = Treatment)) + 
-	geom_bar(stat = "identity", width = 0.5) +
-	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+	geom_bar(stat = "identity", width = 0.5)
 ```
 
 ![](SamHinshawHomework_files/figure-html/plot single probe treatments-1.png)
@@ -545,8 +547,7 @@ ggplot(data = singleprobe, aes(y = intensity, x = Treatment)) +
 
 ```r
 ggplot(data = singleprobe, aes(y = intensity, x = time)) + 
-	geom_bar(stat = "identity", width = 0.5) +
-	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+	geom_bar(stat = "identity", width = 0.5)
 ```
 
 ![](SamHinshawHomework_files/figure-html/plot single probe times-1.png)
@@ -693,15 +694,17 @@ tilegradient <- brewer.pal(11, "Spectral")
 Now to plot!
 
 ```r
-ggplot(joined_corr, aes(x = qualitative2, y = qualitative, fill = value)) + 
+p <- ggplot(joined_corr, aes(x = qualitative2, y = qualitative, fill = value)) + 
 	geom_tile() +
 	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
 	scale_fill_gradientn(colors = tilegradient)
+p
 ```
 
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-4-1.png)
 
 ```r
+save_plot("heatmap.svg", p, base_height = 7, base_aspect_ratio = 1.14)
 ggplot(by_time, aes(x = qualitative2, y = qualitative, fill = value)) + 
 	geom_tile() +
 	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
@@ -1525,7 +1528,7 @@ The p-value distributions look very similar when compared directly, but it seems
 
 # Microarray Analysis
 
-## Download Data
+## 6.0 Download Data
 
 See Makefile again
 
@@ -1575,6 +1578,85 @@ colnames(yeast)[1] <- "probeID"
 gath.yeast <- yeast %>% gather("sample", "intensity", 2:7)
 ```
 
+We've got 10,928 probes (rows) and 6 samples in what appears to be two groups (b & c).  The first column is our probe ID column.  
+
+First off, let's plot some pairwise comparisons. 
+
+```r
+ggplot(yeast, aes(x = b1, y = b2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-1.png)
+
+```r
+ggplot(yeast, aes(x = b1, y = b3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-2.png)
+
+```r
+ggplot(yeast, aes(x = b2, y = b3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-3.png)
+
+```r
+ggplot(yeast, aes(x = c1, y = c2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-4.png)
+
+```r
+ggplot(yeast, aes(x = c1, y = c3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-5.png)
+
+```r
+ggplot(yeast, aes(x = c2, y = c3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-6.png)
+
+Well, so far we can see that b2 & b3 look to be in the same group.  Similarly, c1 and c3 seem to be in the same group. 
+
+```r
+ggplot(yeast, aes(x = b1, y = c1)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-1.png)
+
+So do b1 & c1.  So it would see our first group is b1, c1, c3
+
+```r
+ggplot(yeast, aes(x = b1, y = c3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-25-1.png)
+
+Looks about right! That would leave b2, b3, and c2 correlated.  
+
+
+```r
+ggplot(yeast, aes(x = b2, y = b3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-26-1.png)
+
+```r
+ggplot(yeast, aes(x = b2, y = c2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-26-2.png)
+
+```r
+ggplot(yeast, aes(x = b3, y = c2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-26-3.png)
+
+Looks pretty good!
+
 Let's compute the pearson distance between samples. 
 
 ```r
@@ -1585,21 +1667,44 @@ yeast.corr <- yeast %>%
 yeast.corr$correlate <- row.names(yeast.corr)
 heatmapcolors <- brewer.pal(9, "Oranges")
 yeast.corr %<>% gather("sample", "correlation", 1:6)
+ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) + 
+	geom_tile() +
+	scale_fill_gradientn(colors = heatmapcolors)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-1.png)
+
+Okay, now let's rearrange based on what we decided from our pairwise sample-sample scatterplots and what looks like some obvious clustering in our first heatmap.
+
+```r
 yeast.corr %<>% 
 	mutate(sample = factor(sample, levels = c("b1", "c1", "c3", "c2", "b3", "b2")))
 yeast.corr %<>% 
 	mutate(correlate = factor(correlate, levels = c("b1", "c1", "c3", "c2", "b3", "b2")))
 ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) + 
 	geom_tile() +
-	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
 	scale_fill_gradientn(colors = heatmapcolors)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-28-1.png)
 
 This makes it seem rather apparent that b1, c1, and c3 are part of one group, and c2, b3, and b2 are part of another group.  Either that or there are some serious flaws with these microarrays.  
 
-Let's plot a heatmap of the the top 100 genes
+Let's plot a heatmap of the the top 100 genes, first unsorted.
+
+```r
+gath.yeast %>% 
+	group_by(sample) %>% 
+	do(head(., n = 100)) %>% 
+	ggplot(aes(x = sample, y = probeID, fill = intensity)) + 
+	geom_tile() +
+	scale_fill_viridis() + xlab("Sample") +
+	ylab("probeID")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-29-1.png)
+
+And now with our samples sorted into what we believe to be the true groups.  
 
 ```r
 gath.yeast$sample %<>% as.factor()
@@ -1610,14 +1715,189 @@ gath.yeast %>%
 	do(head(., n = 100)) %>% 
 	ggplot(aes(x = sample, y = probeID, fill = intensity)) + 
 	geom_tile() +
-	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
 	scale_fill_viridis() + xlab("Sample") +
 	ylab("probeID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-30-1.png)
 
-We've got 10,928 probes (rows) and 6 samples in what appears to be two groups (b & c).  The first column is our probe ID column.  
+Finally, how about PCA? We can use `FactoMineR::PCA` to get a simple plot, or use `stats::prcomp` for an object we can pipe into `ggplot2`.  
+
+```r
+noProbes.yeast <- yeast
+row.names(noProbes.yeast) <- noProbes.yeast$probeID
+noProbes.yeast$probeID <- NULL
+
+fPCA <- FactoMineR::PCA(noProbes.yeast, scale.unit = FALSE)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-31-1.png)![](SamHinshawHomework_files/figure-html/unnamed-chunk-31-2.png)
+
+```r
+sPCA <- stats::prcomp(noProbes.yeast, scale. = FALSE)
+(PCA.summary <- summary(sPCA)$importance %>% as.data.frame())
+```
+
+```
+##                             PC1     PC2       PC3       PC4       PC5
+## Standard deviation     8.296578 1.08287 0.1734449 0.1620865 0.1378681
+## Proportion of Variance 0.982030 0.01673 0.0004300 0.0003700 0.0002700
+## Cumulative Proportion  0.982030 0.99876 0.9991800 0.9995600 0.9998300
+##                              PC6
+## Standard deviation     0.1088992
+## Proportion of Variance 0.0001700
+## Cumulative Proportion  1.0000000
+```
+
+We can clearly see that b3, b2, and c2 should be grouped together (as previously)
+
+For another quick plot, we can use `geom_point` with `geom_text`.  
+
+```r
+PCA.rotation <- sPCA$rotation %>% as.data.frame()
+PC1.variance <- paste0("PC1, ", round(100*PCA.summary$PC1[2], 2), "% Variance")
+PC2.variance <- paste0("PC2, ", round(100*PCA.summary$PC2[2], 2), "% Variance")
+ggplot(PCA.rotation, aes(x = PC1, y = PC2, label = rownames(PCA.rotation))) +
+	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-32-1.png)
+
+Note that we get a different looking distribution if we scale our values. Regardless, the clustering is obvious, and our principal components are the same.  
+
+```r
+sPCA.scaled <- stats::prcomp(noProbes.yeast, scale. = TRUE)
+(PCA.scaled.summary <- summary(sPCA.scaled)$importance %>% as.data.frame())
+```
+
+```
+##                            PC1       PC2        PC3        PC4        PC5
+## Standard deviation     2.42737 0.3168461 0.05083209 0.04753665 0.04045052
+## Proportion of Variance 0.98202 0.0167300 0.00043000 0.00038000 0.00027000
+## Cumulative Proportion  0.98202 0.9987500 0.99918000 0.99956000 0.99983000
+##                               PC6
+## Standard deviation     0.03164637
+## Proportion of Variance 0.00017000
+## Cumulative Proportion  1.00000000
+```
+
+```r
+PC1.scaled.variance <- paste0("PC1, ", round(100*PCA.scaled.summary$PC1[2], 2), "% Variance")
+PC2.scaled.variance <- paste0("PC2, ", round(100*PCA.scaled.summary$PC2[2], 2), "% Variance")
+PCA.rotation.scaled <- sPCA.scaled$rotation %>% as.data.frame()
+ggplot(PCA.rotation.scaled, aes(x = PC1, y = PC2, label = rownames(PCA.rotation))) +
+	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-1.png)
+
+Finally, if we also wanted to plot our observations, we could use the `ggbiplot` package.  
+
+```r
+g <- ggbiplot(sPCA, obs.scale = 1, var.scale = 1,
+			  alpha = 0.05, circle = TRUE)
+g + scale_color_discrete(name = '') +
+	theme(legend.direction = 'vertical', 
+		  legend.position = 'right') +
+	ggtitle("PCA Plot of Yeast Samples")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-1.png)
+
+Given all of these plots, we can not satisfactorally conclude that samples b1 and c2 have accidentally been swapped. Let's fix that and continue!
+
+## 6.2 Microarray DEA (2 points)
+
+
+```r
+yeast.fixed <- yeast
+colnames(yeast.fixed)
+```
+
+```
+## [1] "probeID" "b1"      "b2"      "b3"      "c1"      "c2"      "c3"
+```
+
+```r
+colnames(yeast.fixed) <- c("probeID", "c2", "b2", "b3", "c1", "b1", "c3")
+```
+
+Here, I'll use biomaRt to get gene IDs and ensembl gene IDs.  We know from the homework that this experiment is using the Affymetrix Yeast Genome Array 2.0 platform, and we can do a quick check on GEO to confirm.  [GSE37599](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE37599), and [GPL2529](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL2529), Affymetrix Yeast Genome 2.0 Array.  Perfect!
+
+```r
+ensembl <- useMart("ensembl") # set up biomaRt to use the ensembl database
+datasets <- listDatasets(ensembl) # store our datasets so we can see which to use
+ensembl <- useDataset("scerevisiae_gene_ensembl", mart = ensembl) # use the human data set!
+filters <- listFilters(ensembl) # find what filters we can use and cross fingers that it's here
+attributes <- listAttributes(ensembl) # ditto with the attributes
+yeast_probe_IDs <- getBM(attributes = c("external_gene_name", "ensembl_gene_id", "affy_yeast_2"), filters = "affy_yeast_2", values = yeast.fixed$probeID, mart = ensembl) # query the probeIDs
+head(yeast_probe_IDs)
+```
+
+```
+##   external_gene_name ensembl_gene_id affy_yeast_2
+## 1             CUP1-2         YHR055C 1769803_s_at
+## 2               SGV1         YPR161C   1775638_at
+## 3               RTC1         YOL138C   1772806_at
+## 4               SXM1         YDR395W   1771544_at
+## 5               SYF2         YGR129W   1774505_at
+## 6               RHO1         YPR165W   1771897_at
+```
+
+```r
+colnames(yeast_probe_IDs)[3] <- "probeID"
+yeast.fixed <- inner_join(yeast.fixed, yeast_probe_IDs, by = "probeID")
+yeast.fixed
+```
+
+```
+## Source: local data frame [6,259 x 9]
+## 
+##         probeID        c2       b2       b3        c1       b1        c3
+##           (chr)     (dbl)    (dbl)    (dbl)     (dbl)    (dbl)     (dbl)
+## 1    1769308_at 11.145506 6.795593 6.708003 10.945878 6.698862 11.070725
+## 2    1769311_at  9.006138 9.461821 9.234618  8.972233 9.276710  9.004997
+## 3    1769312_at  6.945715 6.895895 6.955463  6.851454 6.900187  6.892854
+## 4    1769313_at  7.815192 6.600131 6.534413  7.770245 6.564123  7.851777
+## 5    1769314_at  8.658098 8.788372 8.982260  8.572727 8.807559  8.657040
+## 6    1769317_at  6.961356 7.418890 7.258103  7.071840 7.225361  6.871157
+## 7    1769319_at  9.362238 9.174514 9.160608  9.413195 9.083989  9.305387
+## 8    1769320_at  5.743091 5.583712 5.543573  5.666377 5.443741  5.882802
+## 9    1769321_at  1.687596 1.936899 1.798421  1.818721 1.845609  1.466536
+## 10 1769322_s_at  5.535851 6.893833 6.692221  5.420552 6.503181  5.397739
+## ..          ...       ...      ...      ...       ...      ...       ...
+## Variables not shown: external_gene_name (chr), ensembl_gene_id (chr)
+```
+
+Alrighty, now that we've got our gene IDs set up, let's bring in some qualitative data describing batch vs chemostat.  For this we'll need to gather our data first.  
+
+```r
+yeast.fg <- yeast.fixed %>% # for yeast, fixed & gathered
+	gather("sample", "intensity", 2:7)
+```
+
+And then we can bring in qualitative data.  We can really just create our own data.frame for this.
+
+```r
+(yeast.pheno <- data.frame("sample" = c("b1", "b2", "b3", "c1", "c2", "c3"), "treatment" = c("batch", "batch", "batch", "chemostat", "chemostat", "chemostat")) %>% tbl_df)
+```
+
+```
+## Source: local data frame [6 x 2]
+## 
+##   sample treatment
+##   (fctr)    (fctr)
+## 1     b1     batch
+## 2     b2     batch
+## 3     b3     batch
+## 4     c1 chemostat
+## 5     c2 chemostat
+## 6     c3 chemostat
+```
+
+```r
+# yeast.fg %<>% inner_join(yeast.fg, yeast.pheno, by = "sample")
+```
 
 ********
-This page was last updated on  Saturday, March 12, 2016 at 08:34PM
+This page was last updated on  Sunday, March 13, 2016 at 04:47PM
