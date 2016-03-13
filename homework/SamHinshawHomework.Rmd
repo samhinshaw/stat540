@@ -265,6 +265,7 @@ ggplot(data = singleprobe, aes(y = intensity, x = time)) +
 	geom_bar(stat = "identity", width = 0.5) +
 	theme(axis.text.x = element_text(angle = 65, hjust = 1))
 ```
+
 Ah-hah! That's rather interesting...
 Let's do all permutations of combinations. 
 ```{r permutations}
@@ -308,6 +309,7 @@ ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) +
 # 2 Assessing Data Quality
 
 Moving on, let's start looking at our data quality, not just visualizing it. 
+
 ## 2.1 Heatmaps
 
 ```{r}
@@ -443,9 +445,9 @@ design.matrix %>% kable("markdown")
 fit <- lmFit(fitdata, design.matrix)
 fit <- contrasts.fit(fit, contrast.matrix)
 efit <- eBayes(fit)
-df <- topTable(efit, coef=1, adjust = "BH")
+df <- topTable(efit)
 df %>% kable("markdown")
-results <- decideTests(efit, adjust.method = "BH", lfc = 2)
+results <- decideTests(efit)
 vennDiagram(results)
 ```
 
@@ -470,29 +472,32 @@ If that equation isn't formatting correctly, make sure you're viewing the HTML v
 
 ## 3.2 Hits in Linear Model
 
-Okay, so it looks like we've got about 36 interesting genes. 
+Okay, so it looks like we've got about 1238 interesting genes. 
 
 First let's take a look at our hits and see how many results we've got with `p < 1e-3`. First we want to see without any adjustment, and then with the FDR adjustment.  
 ```{r}
-topTable.test <- topTable(efit, adjust = "none", number = Inf, p.value = 1e-3)
+tT.treatment <- topTable(efit, adjust = "none", number = Inf, p.value = 1e-3)
 # here, we should see that P.Value = adj.P.Val
-head(topTable.test)
-topTable.test$ProbeID <- row.names(topTable.test)
-topTable.sig.fdr <- topTable(efit, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
-topTable.sig.fdr$ProbeID <- row.names(topTable.sig.fdr)
-nrow(topTable.sig.fdr)
-head(topTable.sig.fdr)
+head(tT.treatment)
+nrow(tT.treatment)
+tT.treatment$ProbeID <- row.names(tT.treatment)
+tT.treatment.sig.fdr <- topTable(efit, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+tT.treatment.sig.fdr$ProbeID <- row.names(tT.treatment.sig.fdr)
+nrow(tT.treatment.sig.fdr)
+head(tT.treatment.sig.fdr)
 ```
 
-Looks good so far!! Shout out to Louie for explaining that I needed to set up my contrast matrix.  So we've got 805 genes significant (`p < 1e-3`) with no adjustment, but just 43 after FDR adjustment.  Briefly, let's look at our p-value distribution, as recommended by Dr. Pavlidis.  
+Looks good so far!! Shout out to Louie for explaining that I needed to set up my contrast matrix.  
+We've got 805 genes significant at p < 0.001 and 1238 significant genes at p < 0.05 after FDR correction.    Briefly, let's look at our p-value distribution, as recommended by Dr. Pavlidis.  
 
 ```{r}
-p <- ggplot(topTable.sig.fdr, aes(x = adj.P.Val))
+p <- ggplot(tT.treatment.sig.fdr, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 1e-3) + 
 	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
 	ggtitle("P-Value Distribution of Significant Genes \n corrected with FDR = 0.05")
 ```
 
+Looks pretty good!
 
 >*Take the top 50 probes as your “hits” and create a heatmap of their expression levels. Sort the hits by p-values and the samples by treatment.*
 
@@ -505,14 +510,14 @@ Okay, so we've got 1238 hits, let's take the top 50 hits, and then we should go 
 # glimpse(gathered_data2)
 gathered_data %<>% 
 	mutate(qualitative = paste0(Treatment, "_", as.character(hours), "_", ExternalID))
-topTable.sig.fdr.filtered <- topTable.sig.fdr %>% 
+tT.sig.fdr.filtered <- tT.treatment.sig.fdr %>% 
 	head(n = 50) %>% tbl_df()
-topTable.sig.fdr.filtered
+tT.sig.fdr.filtered
 topHits <- gathered_data %>% 
-	filter(ProbeID %in% topTable.sig.fdr.filtered$ProbeID)
+	filter(ProbeID %in% tT.sig.fdr.filtered$ProbeID)
 nrow(topHits)
 
-topHits <- inner_join(topHits, topTable.sig.fdr.filtered, by = "ProbeID")
+topHits <- inner_join(topHits, tT.sig.fdr.filtered, by = "ProbeID")
 topHits <- left_join(topHits, affy_probe_IDs_hgnc, by = "ProbeID")
 
 glimpse(topHits)
@@ -542,7 +547,7 @@ ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) +
 	geom_tile() +
 	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
 	scale_fill_viridis() + xlab("Sample") +
-	ylab("Ensembl Gene ID")
+	ylab("HGNC Symbol (p-value)")
 ```
 
 >*What is the (estimated) false discovery rate of this “hits” list? How many of these hits do we expect to be false discoveries?*
@@ -555,7 +560,7 @@ Because we've set the p.value of our `topTable` output to 0.05 with an FDR adjus
 
 Let's pick up where we left off before 3.1, this time setting time in our design matrix.  
 ```{r}
-design.matrix.time <- model.matrix(~0+hours, design)
+design.matrix.time <- model.matrix(~hours, design)
 # contrast.matrix.time <- makeContrasts(hours, levels = design.matrix.time) # this step is unnecessary!
 ## Let's make sure this looks right:
 design.matrix.time %>% kable("markdown")
@@ -570,29 +575,30 @@ vennDiagram(results.time)
 
 Interesting so far, let's continue.
 ```{r}
-topTable.time <- topTable(efit.time, adjust = "none", number = Inf, p.value = 1e-3)
+tT.time <- topTable(efit.time, adjust = "none", number = Inf, p.value = 1e-3)
 # here, we should see that P.Value = adj.P.Val
-head(topTable.time)
-nrow(topTable.time)
+head(tT.time)
+nrow(tT.time)
 
-p <- ggplot(topTable.time, aes(x = adj.P.Val))
+p <- ggplot(tT.time, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 1e-3) + 
 	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
 	ggtitle("P-Value Distribution of Significant Genes") + xlim(0, 0.05)
+## That's actually not so meaningful since we've filtered on all p-values under 0.001
 
-topTable.time$ProbeID <- row.names(topTable.time)
-topTable.time.sig.fdr <- topTable(efit.time, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
-topTable.time.sig.fdr$ProbeID <- row.names(topTable.time.sig.fdr)
-nrow(topTable.time.sig.fdr)
-head(topTable.time.sig.fdr)
+# topTable.time$ProbeID <- row.names(topTable.time)
+tT.time.sig.fdr <- topTable(efit.time, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+# topTable.time.sig.fdr$ProbeID <- row.names(topTable.time.sig.fdr)
+nrow(tT.time.sig.fdr)
+head(tT.time.sig.fdr)
 
-p <- ggplot(topTable.time.sig.fdr, aes(x = adj.P.Val))
+p <- ggplot(tT.time.sig.fdr, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 1e-3) + 
 	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
 	ggtitle("P-Value Distribution of Significant Genes \n corrected with FDR = 0.05")
 ```
 
-Interesting, I'm glad I plotted that since it doesn't seem right.  Still, we expect these genes to all be different from each other in some way, so it's also not impossible. It's hard, since I don't really know what to even expect...
+Alright, that's looking much better. We've got 958 hits with p-value under 0.001, and 1451 hits with FDR and p-value under 0.05.  
 
 Let's go straight to question 5 and come back to this one.  
 
@@ -602,11 +608,12 @@ Let's go straight to question 5 and come back to this one.
 ```{r}
 design.matrix.combined <- model.matrix(~0 + Treatment * hours, design)
 colnames(design.matrix.combined) <- c("cs", "control", "hours", "control.hours")
-contrast.matrix.combined <- makeContrasts(cs-control, cs-control.hours, levels = design.matrix.combined) # this step is unnecessary!
+contrast.matrix.combined <- makeContrasts(control.hours-cs-hours+control, levels = design.matrix.combined)
+# contrast.matrix.combined <- makeContrasts(control.hours-cs-hours+control, levels = design.matrix.combined)
 ## Let's make sure this looks right:
 design.matrix.combined %>% kable("markdown")
 fit.combined <- lmFit(fitdata, design.matrix.combined)
-fit.combined <- contrasts.fit(fit.combined, contrast.matrix.combined) # this step is unnecessary!
+fit.combined <- contrasts.fit(fit.combined, contrast.matrix.combined)
 efit.combined <- eBayes(fit.combined)
 tT.combined <- topTable(efit.combined)
 tT.combined %>% kable("markdown")
@@ -614,6 +621,120 @@ results.combined <- decideTests(efit.combined)
 vennDiagram(results.combined)
 ```
 
+Doesn't look too bad, but I'm still struggling to figure out exactly what this is modelling. Let's push ahead and I'll come back to this.
+
+>*For how many probes is treatment a significant factor at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
+
+```{r}
+tT.combined <- topTable(efit.combined, adjust = "none", number = Inf, p.value = 1e-3)
+# here, we should see that P.Value = adj.P.Val
+head(tT.combined)
+nrow(tT.combined)
+```
+
+So 716 significant genes at p < 0.001
+
+```{r}
+tT.combined.sig.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+head(tT.combined.sig.fdr)
+nrow(tT.combined.sig.fdr)
+```
+
+And 1006 significant genes with FDR correction and p < 0.05.  
+
+>*Is this number different from what you reported in 3.2? Why? Quantify the proportion of overlapping probes among your hits, when using the unadjusted p-value threshold of 1e-3.*
+
+Here we have just 716 significantly different genes, down from 805 when just considering treatment.  Let's look at the overlap. We'll compare our toptables, `tT.treatment` and `tT.combined`.  
+```{r}
+tT.treatment %<>% tbl_df()
+tT.combined$ProbeID <- row.names(tT.combined)
+tT.combined %<>% tbl_df()
+tT.combined$ProbeID %in% tT.treatment$ProbeID %>% # listing the smaller length list first just to be safe
+	sum() # this treats TRUE as 1 and FALSE as 0
+```
+
+Okay, we've got an overlap of 418 genes, I'd say that's expected.  
+
+>*Plot the distributions of all the p-values for treatment when using both models, i.e., one from the model in Q3 and one from the full model in this question. Compare and comment on the similarity/differences in the shape of the distributions.*
+
+Sweet, I've already done this! We can run them again though.  I'll plot the p-value distributions when using the FDR correction, as this will more accurately reflect real hits, but I'll make sure to not cap at p < 0.05 this time though.  
+```{r}
+tT.treatment.fdr <- topTable(efit, adjust = "fdr", number = Inf)
+
+p <- ggplot(tT.treatment.fdr, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 0.01) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution for Treatment Model")
+
+tT.combined.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf)
+
+p <- ggplot(tT.combined.fdr, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 0.01) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution for Combined Model")
+```
+
+The p-value distributions look very similar when compared directly, but it seems as though we may have fewer significant hits when using our combined model.  That doesn't seem right, I would've expected to see a skew towards significance in the combined model, since we're more accurately separating our groups. Let's come back to this later.  
+
+## 5.2 Test the null hypothesis
+
+>*Explain in English what you are modeling with this interaction term (what does it represent?).*
+>*For how many probes is the interaction effect significant at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
+
+## 5.3 Plot a few probes where the interaction does and does not matter 
+
+# Microarray Analysis
+
+## Download Data
+
+See Makefile again
+
+## 6.1 Data loading and QC
+```{r}
+yeast <- read_delim("yeast.tsv", delim = "\t")
+glimpse(yeast)
+yeast
+colnames(yeast)[1] <- "probeID"
+gath.yeast <- yeast %>% gather("sample", "intensity", 2:7)
+```
+
+Let's compute the pearson distance between samples. 
+```{r}
+yeast.corr <- yeast %>% 
+	select(-probeID) %>% 
+	cor(method = "pearson") %>% 
+	as.data.frame()
+yeast.corr$correlate <- row.names(yeast.corr)
+heatmapcolors <- brewer.pal(9, "Oranges")
+yeast.corr %<>% gather("sample", "correlation", 1:6)
+yeast.corr %<>% 
+	mutate(sample = factor(sample, levels = c("b1", "c1", "c3", "c2", "b3", "b2")))
+yeast.corr %<>% 
+	mutate(correlate = factor(correlate, levels = c("b1", "c1", "c3", "c2", "b3", "b2")))
+ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_gradientn(colors = heatmapcolors)
+```
+
+This makes it seem rather apparent that b1, c1, and c3 are part of one group, and c2, b3, and b2 are part of another group.  Either that or there are some serious flaws with these microarrays.  
+
+Let's plot a heatmap of the the top 100 genes
+```{r}
+gath.yeast$sample %<>% as.factor()
+gath.yeast %<>% 
+	mutate(sample = factor(sample, levels = c("b1", "c1", "c3", "c2", "b3", "b2")))
+gath.yeast %>% 
+	group_by(sample) %>% 
+	do(head(., n = 100)) %>% 
+	ggplot(aes(x = sample, y = probeID, fill = intensity)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_viridis() + xlab("Sample") +
+	ylab("probeID")
+```
+
+We've got 10,928 probes (rows) and 6 samples in what appears to be two groups (b & c).  The first column is our probe ID column.  
 
 ********
 This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`

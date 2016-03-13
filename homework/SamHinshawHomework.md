@@ -550,6 +550,7 @@ ggplot(data = singleprobe, aes(y = intensity, x = time)) +
 ```
 
 ![](SamHinshawHomework_files/figure-html/plot single probe times-1.png)
+
 Ah-hah! That's rather interesting...
 Let's do all permutations of combinations. 
 
@@ -602,6 +603,7 @@ ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) +
 # 2 Assessing Data Quality
 
 Moving on, let's start looking at our data quality, not just visualizing it. 
+
 ## 2.1 Heatmaps
 
 
@@ -882,7 +884,7 @@ design.matrix %>% kable("markdown")
 fit <- lmFit(fitdata, design.matrix)
 fit <- contrasts.fit(fit, contrast.matrix)
 efit <- eBayes(fit)
-df <- topTable(efit, coef=1, adjust = "BH")
+df <- topTable(efit)
 df %>% kable("markdown")
 ```
 
@@ -902,7 +904,7 @@ df %>% kable("markdown")
 |226924_at   | 0.6366539|  9.588850| 7.726141|   1e-07| 0.0001933| 7.993752|
 
 ```r
-results <- decideTests(efit, adjust.method = "BH", lfc = 2)
+results <- decideTests(efit)
 vennDiagram(results)
 ```
 
@@ -958,14 +960,14 @@ If that equation isn't formatting correctly, make sure you're viewing the HTML v
 
 ## 3.2 Hits in Linear Model
 
-Okay, so it looks like we've got about 36 interesting genes. 
+Okay, so it looks like we've got about 1238 interesting genes. 
 
 First let's take a look at our hits and see how many results we've got with `p < 1e-3`. First we want to see without any adjustment, and then with the FDR adjustment.  
 
 ```r
-topTable.test <- topTable(efit, adjust = "none", number = Inf, p.value = 1e-3)
+tT.treatment <- topTable(efit, adjust = "none", number = Inf, p.value = 1e-3)
 # here, we should see that P.Value = adj.P.Val
-head(topTable.test)
+head(tT.treatment)
 ```
 
 ```
@@ -979,10 +981,18 @@ head(topTable.test)
 ```
 
 ```r
-topTable.test$ProbeID <- row.names(topTable.test)
-topTable.sig.fdr <- topTable(efit, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
-topTable.sig.fdr$ProbeID <- row.names(topTable.sig.fdr)
-nrow(topTable.sig.fdr)
+nrow(tT.treatment)
+```
+
+```
+## [1] 805
+```
+
+```r
+tT.treatment$ProbeID <- row.names(tT.treatment)
+tT.treatment.sig.fdr <- topTable(efit, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+tT.treatment.sig.fdr$ProbeID <- row.names(tT.treatment.sig.fdr)
+nrow(tT.treatment.sig.fdr)
 ```
 
 ```
@@ -990,7 +1000,7 @@ nrow(topTable.sig.fdr)
 ```
 
 ```r
-head(topTable.sig.fdr)
+head(tT.treatment.sig.fdr)
 ```
 
 ```
@@ -1010,11 +1020,12 @@ head(topTable.sig.fdr)
 ## 209020_at 209020_at
 ```
 
-Looks good so far!! Shout out to Louie for explaining that I needed to set up my contrast matrix.  So we've got 805 genes significant (`p < 1e-3`) with no adjustment, but just 43 after FDR adjustment.  Briefly, let's look at our p-value distribution, as recommended by Dr. Pavlidis.  
+Looks good so far!! Shout out to Louie for explaining that I needed to set up my contrast matrix.  
+We've got 805 genes significant at p < 0.001 and 1238 significant genes at p < 0.05 after FDR correction.    Briefly, let's look at our p-value distribution, as recommended by Dr. Pavlidis.  
 
 
 ```r
-p <- ggplot(topTable.sig.fdr, aes(x = adj.P.Val))
+p <- ggplot(tT.treatment.sig.fdr, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 1e-3) + 
 	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
 	ggtitle("P-Value Distribution of Significant Genes \n corrected with FDR = 0.05")
@@ -1022,6 +1033,7 @@ p + geom_histogram(binwidth = 1e-3) +
 
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-12-1.png)
 
+Looks pretty good!
 
 >*Take the top 50 probes as your “hits” and create a heatmap of their expression levels. Sort the hits by p-values and the samples by treatment.*
 
@@ -1035,9 +1047,9 @@ Okay, so we've got 1238 hits, let's take the top 50 hits, and then we should go 
 # glimpse(gathered_data2)
 gathered_data %<>% 
 	mutate(qualitative = paste0(Treatment, "_", as.character(hours), "_", ExternalID))
-topTable.sig.fdr.filtered <- topTable.sig.fdr %>% 
+tT.sig.fdr.filtered <- tT.treatment.sig.fdr %>% 
 	head(n = 50) %>% tbl_df()
-topTable.sig.fdr.filtered
+tT.sig.fdr.filtered
 ```
 
 ```
@@ -1061,7 +1073,7 @@ topTable.sig.fdr.filtered
 
 ```r
 topHits <- gathered_data %>% 
-	filter(ProbeID %in% topTable.sig.fdr.filtered$ProbeID)
+	filter(ProbeID %in% tT.sig.fdr.filtered$ProbeID)
 nrow(topHits)
 ```
 
@@ -1070,7 +1082,7 @@ nrow(topHits)
 ```
 
 ```r
-topHits <- inner_join(topHits, topTable.sig.fdr.filtered, by = "ProbeID")
+topHits <- inner_join(topHits, tT.sig.fdr.filtered, by = "ProbeID")
 topHits <- left_join(topHits, affy_probe_IDs_hgnc, by = "ProbeID")
 
 glimpse(topHits)
@@ -1126,7 +1138,7 @@ ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) +
 	geom_tile() +
 	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
 	scale_fill_viridis() + xlab("Sample") +
-	ylab("Ensembl Gene ID")
+	ylab("HGNC Symbol (p-value)")
 ```
 
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-14-1.png)
@@ -1142,7 +1154,7 @@ Because we've set the p.value of our `topTable` output to 0.05 with an FDR adjus
 Let's pick up where we left off before 3.1, this time setting time in our design matrix.  
 
 ```r
-design.matrix.time <- model.matrix(~0+hours, design)
+design.matrix.time <- model.matrix(~hours, design)
 # contrast.matrix.time <- makeContrasts(hours, levels = design.matrix.time) # this step is unnecessary!
 ## Let's make sure this looks right:
 design.matrix.time %>% kable("markdown")
@@ -1150,54 +1162,61 @@ design.matrix.time %>% kable("markdown")
 
 
 
-| hours|
-|-----:|
-|    24|
-|     1|
-|     1|
-|     1|
-|     4|
-|     4|
-|     4|
-|     1|
-|     1|
-|     2|
-|    24|
-|     2|
-|     2|
-|     4|
-|     4|
-|     4|
-|    24|
-|    24|
-|    24|
-|    24|
-|     2|
-|     2|
-|     2|
+| (Intercept)| hours|
+|-----------:|-----:|
+|           1|    24|
+|           1|     1|
+|           1|     1|
+|           1|     1|
+|           1|     4|
+|           1|     4|
+|           1|     4|
+|           1|     1|
+|           1|     1|
+|           1|     2|
+|           1|    24|
+|           1|     2|
+|           1|     2|
+|           1|     4|
+|           1|     4|
+|           1|     4|
+|           1|    24|
+|           1|    24|
+|           1|    24|
+|           1|    24|
+|           1|     2|
+|           1|     2|
+|           1|     2|
 
 ```r
 fit.time <- lmFit(fitdata, design.matrix.time)
 # fit <- contrasts.fit(fit, contrast.matrix.time) # this step is unnecessary!
 efit.time <- eBayes(fit.time)
 tT.time <- topTable(efit.time)
+```
+
+```
+## Removing intercept from test coefficients
+```
+
+```r
 tT.time %>% kable("markdown")
 ```
 
 
 
-|            |     logFC|   AveExpr|        t|  P.Value| adj.P.Val|        B|
-|:-----------|---------:|---------:|--------:|--------:|---------:|--------:|
-|214290_s_at | 0.6723092| 12.362832| 4.760764| 4.42e-05| 0.0007126| 2.064841|
-|202627_s_at | 0.6679322| 12.323446| 4.737134| 4.72e-05| 0.0007126| 2.004786|
-|230710_at   | 0.4712516|  8.311076| 4.736658| 4.73e-05| 0.0007126| 2.003575|
-|209034_at   | 0.5617062| 10.188624| 4.725864| 4.87e-05| 0.0007126| 1.976149|
-|225239_at   | 0.5849378| 10.730673| 4.690227| 5.39e-05| 0.0007126| 1.885634|
-|202887_s_at | 0.7272043| 13.601392| 4.682904| 5.51e-05| 0.0007126| 1.867039|
-|231897_at   | 0.6797121| 12.646206| 4.682150| 5.52e-05| 0.0007126| 1.865124|
-|208937_s_at | 0.6587396| 12.243896| 4.672636| 5.67e-05| 0.0007126| 1.840972|
-|239272_at   | 0.5022195|  9.068385| 4.665381| 5.79e-05| 0.0007126| 1.822557|
-|202628_s_at | 0.6737343| 12.568522| 4.662056| 5.84e-05| 0.0007126| 1.814118|
+|            |      logFC|   AveExpr|          t| P.Value| adj.P.Val|        B|
+|:-----------|----------:|---------:|----------:|-------:|---------:|--------:|
+|202586_at   | -0.0432119|  9.045753| -11.559699|       0|  1.30e-06| 15.28331|
+|203201_at   | -0.0424279| 10.057592| -10.121063|       0|  6.70e-06| 12.74567|
+|227559_at   | -0.0550160|  8.182478|  -9.958972|       0|  6.70e-06| 12.44384|
+|202769_at   |  0.0431789| 12.095002|   9.769108|       0|  6.70e-06| 12.08602|
+|226775_at   | -0.0382855|  8.647286|  -9.734894|       0|  6.70e-06| 12.02105|
+|213113_s_at | -0.0465079| 10.391574|  -9.412004|       0|  1.03e-05| 11.40035|
+|202770_s_at |  0.0359188| 11.510308|   9.272069|       0|  1.16e-05| 11.12709|
+|226226_at   |  0.0432314|  9.561381|   9.139895|       0|  1.32e-05| 10.86660|
+|202887_s_at |  0.0419794| 13.601392|   8.972788|       0|  1.63e-05| 10.53391|
+|200810_s_at | -0.0343603| 11.350772|  -8.828058|       0|  1.67e-05| 10.24274|
 
 ```r
 results.time <- decideTests(efit.time)
@@ -1209,38 +1228,45 @@ vennDiagram(results.time)
 Interesting so far, let's continue.
 
 ```r
-topTable.time <- topTable(efit.time, adjust = "none", number = Inf, p.value = 1e-3)
+tT.time <- topTable(efit.time, adjust = "none", number = Inf, p.value = 1e-3)
+```
+
+```
+## Removing intercept from test coefficients
+```
+
+```r
 # here, we should see that P.Value = adj.P.Val
-head(topTable.time)
+head(tT.time)
 ```
 
 ```
-##                 logFC   AveExpr        t      P.Value    adj.P.Val
-## 214290_s_at 0.6723092 12.362832 4.760764 4.415576e-05 4.415576e-05
-## 202627_s_at 0.6679322 12.323446 4.737134 4.721622e-05 4.721622e-05
-## 230710_at   0.4712516  8.311076 4.736658 4.728005e-05 4.728005e-05
-## 209034_at   0.5617062 10.188624 4.725864 4.874927e-05 4.874927e-05
-## 225239_at   0.5849378 10.730673 4.690228 5.392977e-05 5.392977e-05
-## 202887_s_at 0.7272043 13.601392 4.682904 5.506032e-05 5.506032e-05
+##                   logFC   AveExpr          t      P.Value    adj.P.Val
+## 202586_at   -0.04321190  9.045753 -11.559699 5.595299e-11 5.595299e-11
+## 203201_at   -0.04242793 10.057592 -10.121063 7.109181e-10 7.109181e-10
+## 227559_at   -0.05501598  8.182478  -9.958972 9.609875e-10 9.609875e-10
+## 202769_at    0.04317888 12.095002   9.769107 1.373425e-09 1.373425e-09
+## 226775_at   -0.03828553  8.647287  -9.734894 1.465398e-09 1.465398e-09
+## 213113_s_at -0.04650788 10.391574  -9.412004 2.721027e-09 2.721027e-09
 ##                    B
-## 214290_s_at 2.064841
-## 202627_s_at 2.004786
-## 230710_at   2.003575
-## 209034_at   1.976149
-## 225239_at   1.885634
-## 202887_s_at 1.867039
+## 202586_at   15.28331
+## 203201_at   12.74567
+## 227559_at   12.44384
+## 202769_at   12.08602
+## 226775_at   12.02105
+## 213113_s_at 11.40035
 ```
 
 ```r
-nrow(topTable.time)
+nrow(tT.time)
 ```
 
 ```
-## [1] 17111
+## [1] 958
 ```
 
 ```r
-p <- ggplot(topTable.time, aes(x = adj.P.Val))
+p <- ggplot(tT.time, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 1e-3) + 
 	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
 	ggtitle("P-Value Distribution of Significant Genes") + xlim(0, 0.05)
@@ -1249,39 +1275,48 @@ p + geom_histogram(binwidth = 1e-3) +
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-16-1.png)
 
 ```r
-topTable.time$ProbeID <- row.names(topTable.time)
-topTable.time.sig.fdr <- topTable(efit.time, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
-topTable.time.sig.fdr$ProbeID <- row.names(topTable.time.sig.fdr)
-nrow(topTable.time.sig.fdr)
+## That's actually not so meaningful since we've filtered on all p-values under 0.001
+
+# topTable.time$ProbeID <- row.names(topTable.time)
+tT.time.sig.fdr <- topTable(efit.time, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
 ```
 
 ```
-## [1] 22735
-```
-
-```r
-head(topTable.time.sig.fdr)
-```
-
-```
-##                 logFC   AveExpr        t      P.Value    adj.P.Val
-## 214290_s_at 0.6723092 12.362832 4.760764 4.415576e-05 0.0007126206
-## 202627_s_at 0.6679322 12.323446 4.737134 4.721622e-05 0.0007126206
-## 230710_at   0.4712516  8.311076 4.736658 4.728005e-05 0.0007126206
-## 209034_at   0.5617062 10.188624 4.725864 4.874927e-05 0.0007126206
-## 225239_at   0.5849378 10.730673 4.690228 5.392977e-05 0.0007126206
-## 202887_s_at 0.7272043 13.601392 4.682904 5.506032e-05 0.0007126206
-##                    B     ProbeID
-## 214290_s_at 2.064841 214290_s_at
-## 202627_s_at 2.004786 202627_s_at
-## 230710_at   2.003575   230710_at
-## 209034_at   1.976149   209034_at
-## 225239_at   1.885634   225239_at
-## 202887_s_at 1.867039 202887_s_at
+## Removing intercept from test coefficients
 ```
 
 ```r
-p <- ggplot(topTable.time.sig.fdr, aes(x = adj.P.Val))
+# topTable.time.sig.fdr$ProbeID <- row.names(topTable.time.sig.fdr)
+nrow(tT.time.sig.fdr)
+```
+
+```
+## [1] 1451
+```
+
+```r
+head(tT.time.sig.fdr)
+```
+
+```
+##                   logFC   AveExpr          t      P.Value    adj.P.Val
+## 202586_at   -0.04321190  9.045753 -11.559699 5.595299e-11 1.272203e-06
+## 203201_at   -0.04242793 10.057592 -10.121063 7.109181e-10 6.663751e-06
+## 227559_at   -0.05501598  8.182478  -9.958972 9.609875e-10 6.663751e-06
+## 202769_at    0.04317888 12.095002   9.769107 1.373425e-09 6.663751e-06
+## 226775_at   -0.03828553  8.647287  -9.734894 1.465398e-09 6.663751e-06
+## 213113_s_at -0.04650788 10.391574  -9.412004 2.721027e-09 1.031133e-05
+##                    B
+## 202586_at   15.28331
+## 203201_at   12.74567
+## 227559_at   12.44384
+## 202769_at   12.08602
+## 226775_at   12.02105
+## 213113_s_at 11.40035
+```
+
+```r
+p <- ggplot(tT.time.sig.fdr, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 1e-3) + 
 	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
 	ggtitle("P-Value Distribution of Significant Genes \n corrected with FDR = 0.05")
@@ -1289,7 +1324,7 @@ p + geom_histogram(binwidth = 1e-3) +
 
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-16-2.png)
 
-Interesting, I'm glad I plotted that since it doesn't seem right.  Still, we expect these genes to all be different from each other in some way, so it's also not impossible. It's hard, since I don't really know what to even expect...
+Alright, that's looking much better. We've got 958 hits with p-value under 0.001, and 1451 hits with FDR and p-value under 0.05.  
 
 Let's go straight to question 5 and come back to this one.  
 
@@ -1300,7 +1335,8 @@ Let's go straight to question 5 and come back to this one.
 ```r
 design.matrix.combined <- model.matrix(~0 + Treatment * hours, design)
 colnames(design.matrix.combined) <- c("cs", "control", "hours", "control.hours")
-contrast.matrix.combined <- makeContrasts(cs-control, cs-control.hours, levels = design.matrix.combined) # this step is unnecessary!
+contrast.matrix.combined <- makeContrasts(control.hours-cs-hours+control, levels = design.matrix.combined)
+# contrast.matrix.combined <- makeContrasts(control.hours-cs-hours+control, levels = design.matrix.combined)
 ## Let's make sure this looks right:
 design.matrix.combined %>% kable("markdown")
 ```
@@ -1335,7 +1371,7 @@ design.matrix.combined %>% kable("markdown")
 
 ```r
 fit.combined <- lmFit(fitdata, design.matrix.combined)
-fit.combined <- contrasts.fit(fit.combined, contrast.matrix.combined) # this step is unnecessary!
+fit.combined <- contrasts.fit(fit.combined, contrast.matrix.combined)
 efit.combined <- eBayes(fit.combined)
 tT.combined <- topTable(efit.combined)
 tT.combined %>% kable("markdown")
@@ -1343,18 +1379,18 @@ tT.combined %>% kable("markdown")
 
 
 
-|            | cs...control| cs...control.hours|  AveExpr|        F| P.Value| adj.P.Val|
-|:-----------|------------:|------------------:|--------:|--------:|-------:|---------:|
-|200817_x_at |    0.0149055|           15.67659| 15.66252| 205448.4|       0|         0|
-|212661_x_at |    0.0149566|           15.73017| 15.70243| 200929.2|       0|         0|
-|212391_x_at |    0.0077494|           15.73849| 15.73838| 199216.9|       0|         0|
-|212284_x_at |    0.0046001|           15.64491| 15.65159| 198922.2|       0|         0|
-|200717_x_at |    0.0515706|           15.68822| 15.66585| 193992.2|       0|         0|
-|211378_x_at |   -0.0143710|           15.61472| 15.60092| 193055.7|       0|         0|
-|212185_x_at |   -0.0233651|           15.68277| 15.69879| 192327.3|       0|         0|
-|217733_s_at |    0.0174869|           15.91618| 15.90816| 191398.0|       0|         0|
-|211978_x_at |    0.0059078|           15.67051| 15.65800| 187939.0|       0|         0|
-|212790_x_at |    0.0217819|           15.70484| 15.69489| 187452.5|       0|         0|
+|             |      logFC|   AveExpr|         t| P.Value| adj.P.Val|        B|
+|:------------|----------:|---------:|---------:|-------:|---------:|--------:|
+|200912_s_at  | -0.8757283| 14.071988| -8.758345|   0e+00| 0.0002771| 9.164826|
+|220468_at    | -2.9173263|  6.488711| -8.685713|   0e+00| 0.0002771| 9.043771|
+|1555411_a_at | -1.4826165| 10.243140| -8.382913|   0e+00| 0.0002771| 8.530373|
+|219998_at    |  0.7526059|  9.276269|  8.354274|   0e+00| 0.0002771| 8.481081|
+|220046_s_at  | -1.4771358| 10.598902| -8.160025|   1e-07| 0.0003228| 8.143386|
+|223394_at    | -1.4103411| 10.909886| -8.057437|   1e-07| 0.0003287| 7.962661|
+|200779_at    | -0.8388795| 13.983184| -7.966421|   1e-07| 0.0003370| 7.800940|
+|203665_at    | -4.9919620| 10.745720| -7.821309|   1e-07| 0.0003933| 7.540405|
+|214949_at    |  0.4699798| 11.117630|  7.584483|   2e-07| 0.0005447| 7.108080|
+|223774_at    | -1.0890953|  9.529931| -7.548391|   2e-07| 0.0005447| 7.041420|
 
 ```r
 results.combined <- decideTests(efit.combined)
@@ -1363,6 +1399,225 @@ vennDiagram(results.combined)
 
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-17-1.png)
 
+Doesn't look too bad, but I'm still struggling to figure out exactly what this is modelling. Let's push ahead and I'll come back to this.
+
+>*For how many probes is treatment a significant factor at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
+
+
+```r
+tT.combined <- topTable(efit.combined, adjust = "none", number = Inf, p.value = 1e-3)
+# here, we should see that P.Value = adj.P.Val
+head(tT.combined)
+```
+
+```
+##                   logFC   AveExpr         t      P.Value    adj.P.Val
+## 200912_s_at  -0.8757283 14.071987 -8.758345 2.265589e-08 2.265589e-08
+## 220468_at    -2.9173263  6.488711 -8.685713 2.596057e-08 2.596057e-08
+## 1555411_a_at -1.4826165 10.243140 -8.382913 4.613481e-08 4.613481e-08
+## 219998_at     0.7526059  9.276269  8.354274 4.874344e-08 4.874344e-08
+## 220046_s_at  -1.4771358 10.598902 -8.160025 7.098560e-08 7.098560e-08
+## 223394_at    -1.4103411 10.909886 -8.057437 8.674876e-08 8.674876e-08
+##                     B
+## 200912_s_at  9.164826
+## 220468_at    9.043771
+## 1555411_a_at 8.530373
+## 219998_at    8.481081
+## 220046_s_at  8.143385
+## 223394_at    7.962661
+```
+
+```r
+nrow(tT.combined)
+```
+
+```
+## [1] 716
+```
+
+So 716 significant genes at p < 0.001
+
+
+```r
+tT.combined.sig.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+head(tT.combined.sig.fdr)
+```
+
+```
+##                   logFC   AveExpr         t      P.Value    adj.P.Val
+## 200912_s_at  -0.8757283 14.071987 -8.758345 2.265589e-08 0.0002770699
+## 220468_at    -2.9173263  6.488711 -8.685713 2.596057e-08 0.0002770699
+## 1555411_a_at -1.4826165 10.243140 -8.382913 4.613481e-08 0.0002770699
+## 219998_at     0.7526059  9.276269  8.354274 4.874344e-08 0.0002770699
+## 220046_s_at  -1.4771358 10.598902 -8.160025 7.098560e-08 0.0003227999
+## 223394_at    -1.4103411 10.909886 -8.057437 8.674876e-08 0.0003287344
+##                     B
+## 200912_s_at  9.164826
+## 220468_at    9.043771
+## 1555411_a_at 8.530373
+## 219998_at    8.481081
+## 220046_s_at  8.143385
+## 223394_at    7.962661
+```
+
+```r
+nrow(tT.combined.sig.fdr)
+```
+
+```
+## [1] 1006
+```
+
+And 1006 significant genes with FDR correction and p < 0.05.  
+
+>*Is this number different from what you reported in 3.2? Why? Quantify the proportion of overlapping probes among your hits, when using the unadjusted p-value threshold of 1e-3.*
+
+Here we have just 716 significantly different genes, down from 805 when just considering treatment.  Let's look at the overlap. We'll compare our toptables, `tT.treatment` and `tT.combined`.  
+
+```r
+tT.treatment %<>% tbl_df()
+tT.combined$ProbeID <- row.names(tT.combined)
+tT.combined %<>% tbl_df()
+tT.combined$ProbeID %in% tT.treatment$ProbeID %>% # listing the smaller length list first just to be safe
+	sum() # this treats TRUE as 1 and FALSE as 0
+```
+
+```
+## [1] 418
+```
+
+Okay, we've got an overlap of 418 genes, I'd say that's expected.  
+
+>*Plot the distributions of all the p-values for treatment when using both models, i.e., one from the model in Q3 and one from the full model in this question. Compare and comment on the similarity/differences in the shape of the distributions.*
+
+Sweet, I've already done this! We can run them again though.  I'll plot the p-value distributions when using the FDR correction, as this will more accurately reflect real hits, but I'll make sure to not cap at p < 0.05 this time though.  
+
+```r
+tT.treatment.fdr <- topTable(efit, adjust = "fdr", number = Inf)
+
+p <- ggplot(tT.treatment.fdr, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 0.01) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution for Treatment Model")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-21-1.png)
+
+```r
+tT.combined.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf)
+
+p <- ggplot(tT.combined.fdr, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 0.01) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution for Combined Model")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-21-2.png)
+
+The p-value distributions look very similar when compared directly, but it seems as though we may have fewer significant hits when using our combined model.  That doesn't seem right, I would've expected to see a skew towards significance in the combined model, since we're more accurately separating our groups. Let's come back to this later.  
+
+## 5.2 Test the null hypothesis
+
+>*Explain in English what you are modeling with this interaction term (what does it represent?).*
+>*For how many probes is the interaction effect significant at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
+
+## 5.3 Plot a few probes where the interaction does and does not matter 
+
+# Microarray Analysis
+
+## Download Data
+
+See Makefile again
+
+## 6.1 Data loading and QC
+
+```r
+yeast <- read_delim("yeast.tsv", delim = "\t")
+glimpse(yeast)
+```
+
+```
+## Observations: 10,928
+## Variables: 7
+## $    (chr) "1769308_at", "1769309_at", "1769310_at", "1769311_at", "17...
+## $ b1 (dbl) 11.1455060, 2.1643295, 1.4883001, 9.0061384, 6.9457152, 7.8...
+## $ b2 (dbl) 6.795593, 3.177408, 1.427200, 9.461821, 6.895895, 6.600131,...
+## $ b3 (dbl) 6.708003, 3.128950, 1.815698, 9.234618, 6.955463, 6.534413,...
+## $ c1 (dbl) 10.945878, 2.498308, 1.462075, 8.972233, 6.851454, 7.770245...
+## $ c2 (dbl) 6.698862, 3.047169, 2.079007, 9.276710, 6.900187, 6.564123,...
+## $ c3 (dbl) 11.070725, 2.444188, 1.623036, 9.004997, 6.892854, 7.851777...
+```
+
+```r
+yeast
+```
+
+```
+## Source: local data frame [10,928 x 7]
+## 
+##                        b1       b2       b3        c1       c2        c3
+##           (chr)     (dbl)    (dbl)    (dbl)     (dbl)    (dbl)     (dbl)
+## 1    1769308_at 11.145506 6.795593 6.708003 10.945878 6.698862 11.070725
+## 2    1769309_at  2.164329 3.177408 3.128950  2.498308 3.047169  2.444188
+## 3    1769310_at  1.488300 1.427200 1.815698  1.462075 2.079007  1.623036
+## 4    1769311_at  9.006138 9.461821 9.234618  8.972233 9.276710  9.004997
+## 5    1769312_at  6.945715 6.895895 6.955463  6.851454 6.900187  6.892854
+## 6    1769313_at  7.815192 6.600131 6.534413  7.770245 6.564123  7.851777
+## 7    1769314_at  8.658098 8.788372 8.982260  8.572727 8.807559  8.657040
+## 8    1769315_at  1.395614 1.451431 1.639303  1.352827 1.539506  1.337297
+## 9  1769316_s_at  1.905238 1.918457 1.628470  1.724167 1.746585  1.518815
+## 10   1769317_at  6.961356 7.418890 7.258103  7.071840 7.225361  6.871157
+## ..          ...       ...      ...      ...       ...      ...       ...
+```
+
+```r
+colnames(yeast)[1] <- "probeID"
+gath.yeast <- yeast %>% gather("sample", "intensity", 2:7)
+```
+
+Let's compute the pearson distance between samples. 
+
+```r
+yeast.corr <- yeast %>% 
+	select(-probeID) %>% 
+	cor(method = "pearson") %>% 
+	as.data.frame()
+yeast.corr$correlate <- row.names(yeast.corr)
+heatmapcolors <- brewer.pal(9, "Oranges")
+yeast.corr %<>% gather("sample", "correlation", 1:6)
+yeast.corr %<>% 
+	mutate(sample = factor(sample, levels = c("b1", "c1", "c3", "c2", "b3", "b2")))
+yeast.corr %<>% 
+	mutate(correlate = factor(correlate, levels = c("b1", "c1", "c3", "c2", "b3", "b2")))
+ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_gradientn(colors = heatmapcolors)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-1.png)
+
+This makes it seem rather apparent that b1, c1, and c3 are part of one group, and c2, b3, and b2 are part of another group.  Either that or there are some serious flaws with these microarrays.  
+
+Let's plot a heatmap of the the top 100 genes
+
+```r
+gath.yeast$sample %<>% as.factor()
+gath.yeast %<>% 
+	mutate(sample = factor(sample, levels = c("b1", "c1", "c3", "c2", "b3", "b2")))
+gath.yeast %>% 
+	group_by(sample) %>% 
+	do(head(., n = 100)) %>% 
+	ggplot(aes(x = sample, y = probeID, fill = intensity)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_viridis() + xlab("Sample") +
+	ylab("probeID")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-1.png)
+
+We've got 10,928 probes (rows) and 6 samples in what appears to be two groups (b & c).  The first column is our probe ID column.  
 
 ********
-This page was last updated on  Friday, March 11, 2016 at 11:52PM
+This page was last updated on  Saturday, March 12, 2016 at 08:34PM

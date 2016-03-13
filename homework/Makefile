@@ -9,13 +9,17 @@ data:
 
 design: 
 	curl -o design.txt 'http://stat540-ubc.github.io/homework/assignment/homework_data/NHBE_design.txt?raw=true'
+	
+yeast: 
+	curl -o yeast.tsv 'http://stat540-ubc.github.io/homework/assignment/homework_data/GSE37599-data.tsv?raw=true'
 
-gitignore: data.txt.gz design.txt data.txt
+gitignore: data.txt.gz design.txt data.txt yeast.tsv
 	grep -q -F 'data.txt' ../.gitignore || echo 'data.txt' >> ../.gitignore
 	grep -q -F 'data.txt.gz' ../.gitignore || echo 'data.txt.gz' >> ../.gitignore
 	grep -q -F 'design.txt' ../.gitignore || echo 'design.txt' >> ../.gitignore
 	grep -q -F 'design_fixed.txt' ../.gitignore || echo 'design_fixed.txt' >> ../.gitignore
 	grep -q -F 'data_fixed.txt' ../.gitignore || echo 'data_fixed.txt' >> ../.gitignore
+	grep -q -F 'yeast.tsv' ../.gitignore || echo 'yeast.tsv' >> ../.gitignore
 
 data_fixed: data.txt
 	cp data.txt data_fixed.txt
