@@ -45,8 +45,8 @@ packages %>%
 
 ```
 ##   package * version       date       source
-## 1   edgeR *  3.12.0 2016-03-12 Bioconductor
-## 2   limma *  3.26.8 2016-03-12 Bioconductor
+## 1   edgeR *  3.12.0 2015-12-17 Bioconductor
+## 2   limma *  3.26.7 2016-01-30 Bioconductor
 ```
 
 ```r
@@ -54,7 +54,7 @@ sessioninfo$platform$version
 ```
 
 ```
-## [1] "R version 3.2.4 (2016-03-10)"
+## [1] "R version 3.2.3 (2015-12-10)"
 ```
 
 Looks good, let's continue
@@ -643,8 +643,8 @@ joined_corr <- melted_corr %>%
 ```
 
 ```
-## Warning in inner_join_impl(x, y, by$x, by$y): joining factor and character
-## vector, coercing into character vector
+## Warning in inner_join_impl(x, y, by$x, by$y, suffix$x, suffix$y): joining
+## factor and character vector, coercing into character vector
 ```
 
 ```r
@@ -657,8 +657,8 @@ joined_corr %<>%
 ```
 
 ```
-## Warning in inner_join_impl(x, y, by$x, by$y): joining factor and character
-## vector, coercing into character vector
+## Warning in inner_join_impl(x, y, by$x, by$y, suffix$x, suffix$y): joining
+## factor and character vector, coercing into character vector
 ```
 
 ```r
@@ -801,13 +801,13 @@ joined_corr %>%
 |Treatment       | hours|  MeanCorr|
 |:---------------|-----:|---------:|
 |cigarette_smoke |     1| 0.9356879|
-|cigarette_smoke |     2| 0.9294967|
-|cigarette_smoke |    24| 0.9275695|
-|cigarette_smoke |     4| 0.9259581|
 |control         |     4| 0.9353380|
 |control         |    24| 0.9317074|
 |control         |     2| 0.9295345|
+|cigarette_smoke |     2| 0.9294967|
+|cigarette_smoke |    24| 0.9275695|
 |control         |     1| 0.9273158|
+|cigarette_smoke |     4| 0.9259581|
 
 Lastly, how does this outlier sample compare to specific treatments (This is a 1hr control sample). For this I'll filter out correlation with itself.
 
@@ -824,14 +824,14 @@ outliers %>%
 
 |Treatment2      | hours2|  MeanCorr|
 |:---------------|------:|---------:|
-|cigarette_smoke |      1| 0.9264554|
-|cigarette_smoke |      2| 0.9197050|
-|cigarette_smoke |      4| 0.9148929|
-|cigarette_smoke |     24| 0.9129820|
 |control         |      1| 0.9274908|
+|cigarette_smoke |      1| 0.9264554|
 |control         |     24| 0.9255085|
 |control         |      4| 0.9252802|
 |control         |      2| 0.9236324|
+|cigarette_smoke |      2| 0.9197050|
+|cigarette_smoke |      4| 0.9148929|
+|cigarette_smoke |     24| 0.9129820|
 
 At last, something meaningful!! This sample correlates MOST those samples within its own group, but also highly with the 1hr cigarette smoke group.  
 
@@ -1071,7 +1071,7 @@ tT.sig.fdr.filtered
 ## 9  0.9256205 10.907060 7.729633 8.438527e-08 0.0001933190 8.000666
 ## 10 0.6366539  9.588851 7.726141 8.502396e-08 0.0001933190 7.993752
 ## ..       ...       ...      ...          ...          ...      ...
-## Variables not shown: ProbeID (chr)
+## Variables not shown: ProbeID (chr).
 ```
 
 ```r
@@ -1158,7 +1158,8 @@ Let's pick up where we left off before 3.1, this time setting time in our design
 
 ```r
 design.matrix.time <- model.matrix(~hours, design)
-# contrast.matrix.time <- makeContrasts(hours, levels = design.matrix.time) # this step is unnecessary!
+# colnames(design.matrix.time) <- c("intercept", "hours")
+# contrast.matrix.time <- makeContrasts(hours-intercept, levels = design.matrix.time) # this step is unnecessary!
 ## Let's make sure this looks right:
 design.matrix.time %>% kable("markdown")
 ```
@@ -1281,7 +1282,7 @@ p + geom_histogram(binwidth = 1e-3) +
 ## That's actually not so meaningful since we've filtered on all p-values under 0.001
 
 # topTable.time$ProbeID <- row.names(topTable.time)
-tT.time.sig.fdr <- topTable(efit.time, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+tT.time.sig.fdr <- topTable(efit.time, adjust = "fdr", number = Inf, p.value = 0.05)
 ```
 
 ```
@@ -1319,6 +1320,26 @@ head(tT.time.sig.fdr)
 ```
 
 ```r
+tT.time.sig.fdr %>% arrange(-logFC) %>% head() # as you can see the effect sizes are very small
+```
+
+```
+##        logFC  AveExpr        t      P.Value  adj.P.Val         B
+## 1 0.10318640 3.819953 3.311150 0.0030893627 0.04910086 -2.511876
+## 2 0.10163021 4.722681 4.046340 0.0005133879 0.01533890 -0.764223
+## 3 0.09433305 5.049077 3.938927 0.0006692057 0.01840187 -1.024376
+## 4 0.09273944 4.212195 3.815442 0.0009068465 0.02214712 -1.321874
+## 5 0.09106298 5.211755 3.360182 0.0027462106 0.04561137 -2.398376
+## 6 0.07960449 5.835676 3.884151 0.0007658706 0.02013133 -1.156568
+```
+
+```r
+## so the slopes may be statistically different, but in practice, there's not much of a change. 
+## this makes sense because we're not properly modelling the system
+## Biologically speaking, we would expect to NOT see a difference in control over time
+## but we WOULD expect to see a difference in CS over time
+## and by not separating those two groups, we're losing power to detect a slope difference
+
 p <- ggplot(tT.time.sig.fdr, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 1e-3) + 
 	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
@@ -1336,43 +1357,104 @@ Let's go straight to question 5 and come back to this one.
 ## 5.1 Quantify the number of hits for treatment
 
 ```r
-design.matrix.combined <- model.matrix(~0 + Treatment * hours, design)
-colnames(design.matrix.combined) <- c("cs", "control", "hours", "control.hours")
-contrast.matrix.combined <- makeContrasts(control.hours-cs-hours+control, levels = design.matrix.combined)
-# contrast.matrix.combined <- makeContrasts(control.hours-cs-hours+control, levels = design.matrix.combined)
-## Let's make sure this looks right:
+design %<>% 
+	arrange(hours)
+colnames(data)
+```
+
+```
+##  [1] "ProbeID"            "GSE10718_Biomat_1"  "GSE10718_Biomat_10"
+##  [4] "GSE10718_Biomat_11" "GSE10718_Biomat_12" "GSE10718_Biomat_13"
+##  [7] "GSE10718_Biomat_14" "GSE10718_Biomat_15" "GSE10718_Biomat_16"
+## [10] "GSE10718_Biomat_17" "GSE10718_Biomat_19" "GSE10718_Biomat_2" 
+## [13] "GSE10718_Biomat_20" "GSE10718_Biomat_21" "GSE10718_Biomat_22"
+## [16] "GSE10718_Biomat_23" "GSE10718_Biomat_24" "GSE10718_Biomat_3" 
+## [19] "GSE10718_Biomat_4"  "GSE10718_Biomat_5"  "GSE10718_Biomat_6" 
+## [22] "GSE10718_Biomat_7"  "GSE10718_Biomat_8"  "GSE10718_Biomat_9" 
+## [25] "ensembl_gene_id"
+```
+
+```r
+# design.matrix.combined <- model.matrix(~0 + (hours * Treatment), design) ## this isn't working!
+design.matrix.combined <- data.frame(
+	"cs.int.alpha" = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 
+	"cs.slope.beta" = c(1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+	"con.int.alpha" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 
+	"con.slope.beta" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24)
+	)
+## Let's reorder fitdata to be safe we WANT
+design %>% arrange(Treatment)
+```
+
+```
+## Source: local data frame [23 x 6]
+## 
+##            InternalID ExternalID       Treatment   time hours
+##                 (chr)      (chr)          (fctr) (fctr) (dbl)
+## 1  GSE10718_Biomat_16  GSM270887 cigarette_smoke    1_h     1
+## 2  GSE10718_Biomat_17  GSM270886 cigarette_smoke    1_h     1
+## 3  GSE10718_Biomat_19  GSM270889 cigarette_smoke    2_h     2
+## 4  GSE10718_Biomat_20  GSM270888 cigarette_smoke    2_h     2
+## 5  GSE10718_Biomat_21  GSM270890 cigarette_smoke    2_h     2
+## 6  GSE10718_Biomat_22  GSM270891 cigarette_smoke    4_h     4
+## 7  GSE10718_Biomat_23  GSM270892 cigarette_smoke    4_h     4
+## 8  GSE10718_Biomat_24  GSM270893 cigarette_smoke    4_h     4
+## 9   GSE10718_Biomat_4  GSM270894 cigarette_smoke   24_h    24
+## 10  GSE10718_Biomat_5  GSM270895 cigarette_smoke   24_h    24
+## ..                ...        ...             ...    ...   ...
+## Variables not shown: qualitative (chr).
+```
+
+```r
+## Looks good
+fitdata <- fitdata[c("GSE10718_Biomat_16", "GSE10718_Biomat_17", "GSE10718_Biomat_19",
+					 "GSE10718_Biomat_20", "GSE10718_Biomat_21", "GSE10718_Biomat_22",
+					 "GSE10718_Biomat_23", "GSE10718_Biomat_24", "GSE10718_Biomat_4", 
+					 "GSE10718_Biomat_5", "GSE10718_Biomat_6", "GSE10718_Biomat_10", 
+					 "GSE10718_Biomat_11", "GSE10718_Biomat_12", "GSE10718_Biomat_7", 
+					 "GSE10718_Biomat_8", "GSE10718_Biomat_9", "GSE10718_Biomat_13", 
+					 "GSE10718_Biomat_14", "GSE10718_Biomat_15", "GSE10718_Biomat_1", 
+					 "GSE10718_Biomat_2", "GSE10718_Biomat_3")]
+## Hopefully this works...
 design.matrix.combined %>% kable("markdown")
 ```
 
 
 
-| cs| control| hours| control.hours|
-|--:|-------:|-----:|-------------:|
-|  0|       1|    24|            24|
-|  0|       1|     1|             1|
-|  0|       1|     1|             1|
-|  0|       1|     1|             1|
-|  0|       1|     4|             4|
-|  0|       1|     4|             4|
-|  0|       1|     4|             4|
-|  1|       0|     1|             0|
-|  1|       0|     1|             0|
-|  1|       0|     2|             0|
-|  0|       1|    24|            24|
-|  1|       0|     2|             0|
-|  1|       0|     2|             0|
-|  1|       0|     4|             0|
-|  1|       0|     4|             0|
-|  1|       0|     4|             0|
-|  0|       1|    24|            24|
-|  1|       0|    24|             0|
-|  1|       0|    24|             0|
-|  1|       0|    24|             0|
-|  0|       1|     2|             2|
-|  0|       1|     2|             2|
-|  0|       1|     2|             2|
+| cs.int.alpha| cs.slope.beta| con.int.alpha| con.slope.beta|
+|------------:|-------------:|-------------:|--------------:|
+|            1|             1|             0|              0|
+|            1|             1|             0|              0|
+|            1|             2|             0|              0|
+|            1|             2|             0|              0|
+|            1|             2|             0|              0|
+|            1|             4|             0|              0|
+|            1|             4|             0|              0|
+|            1|             4|             0|              0|
+|            1|            24|             0|              0|
+|            1|            24|             0|              0|
+|            1|            24|             0|              0|
+|            0|             0|             1|              1|
+|            0|             0|             1|              1|
+|            0|             0|             1|              1|
+|            0|             0|             1|              2|
+|            0|             0|             1|              2|
+|            0|             0|             1|              2|
+|            0|             0|             1|              4|
+|            0|             0|             1|              4|
+|            0|             0|             1|              4|
+|            0|             0|             1|             24|
+|            0|             0|             1|             24|
+|            0|             0|             1|             24|
 
 ```r
+# colnames(design.matrix.combined) <- c("cs", "control", "hours", "control.hours")
+contrast.matrix.combined <- makeContrasts(cs.slope.beta-con.slope.beta,
+										  # cs.slope.beta, con.slope.beta, 
+										  cs.int.alpha-con.int.alpha,  
+										  levels = design.matrix.combined)
+# contrast.matrix.combined <- makeContrasts(control.hours-cs-hours+control, levels = design.matrix.combined)
+## Let's make sure this looks right:
 fit.combined <- lmFit(fitdata, design.matrix.combined)
 fit.combined <- contrasts.fit(fit.combined, contrast.matrix.combined)
 efit.combined <- eBayes(fit.combined)
@@ -1382,18 +1464,18 @@ tT.combined %>% kable("markdown")
 
 
 
-|             |      logFC|   AveExpr|         t| P.Value| adj.P.Val|        B|
-|:------------|----------:|---------:|---------:|-------:|---------:|--------:|
-|200912_s_at  | -0.8757283| 14.071988| -8.758345|   0e+00| 0.0002771| 9.164826|
-|220468_at    | -2.9173263|  6.488711| -8.685713|   0e+00| 0.0002771| 9.043771|
-|1555411_a_at | -1.4826165| 10.243140| -8.382913|   0e+00| 0.0002771| 8.530373|
-|219998_at    |  0.7526059|  9.276269|  8.354274|   0e+00| 0.0002771| 8.481081|
-|220046_s_at  | -1.4771358| 10.598902| -8.160025|   1e-07| 0.0003228| 8.143386|
-|223394_at    | -1.4103411| 10.909886| -8.057437|   1e-07| 0.0003287| 7.962661|
-|200779_at    | -0.8388795| 13.983184| -7.966421|   1e-07| 0.0003370| 7.800940|
-|203665_at    | -4.9919620| 10.745720| -7.821309|   1e-07| 0.0003933| 7.540405|
-|214949_at    |  0.4699798| 11.117630|  7.584483|   2e-07| 0.0005447| 7.108080|
-|223774_at    | -1.0890953|  9.529931| -7.548391|   2e-07| 0.0005447| 7.041420|
+|      | cs.slope.beta...con.slope.beta| cs.int.alpha...con.int.alpha|   AveExpr|         F| P.Value| adj.P.Val|
+|:-----|------------------------------:|----------------------------:|---------:|---------:|-------:|---------:|
+|3744  |                      0.1140710|                   -0.5947966| 12.717558| 132.87049|       0|   0.0e+00|
+|7458  |                      0.0739408|                    0.1655167| 12.362832| 110.74610|       0|   1.0e-07|
+|3518  |                     -0.0628738|                   -0.2206967| 11.804249|  83.69787|       0|   1.0e-06|
+|9409  |                     -0.0592886|                   -0.0926291| 11.218826|  76.57433|       0|   1.5e-06|
+|4984  |                     -0.0574848|                    0.1757714| 10.092374|  75.50078|       0|   1.5e-06|
+|11888 |                     -0.0899071|                   -0.0593157|  9.748163|  73.60875|       0|   1.5e-06|
+|4121  |                     -0.0886490|                    0.0805433| 10.820741|  73.32356|       0|   1.5e-06|
+|4470  |                      0.0631151|                   -0.1662176|  9.928981|  71.41172|       0|   1.6e-06|
+|14305 |                     -0.0623595|                    0.0168690| 11.251135|  69.55375|       0|   1.8e-06|
+|12656 |                     -0.0641124|                    0.0635527| 12.296795|  68.71514|       0|   1.8e-06|
 
 ```r
 results.combined <- decideTests(efit.combined)
@@ -1414,20 +1496,20 @@ head(tT.combined)
 ```
 
 ```
-##                   logFC   AveExpr         t      P.Value    adj.P.Val
-## 200912_s_at  -0.8757283 14.071987 -8.758345 2.265589e-08 2.265589e-08
-## 220468_at    -2.9173263  6.488711 -8.685713 2.596057e-08 2.596057e-08
-## 1555411_a_at -1.4826165 10.243140 -8.382913 4.613481e-08 4.613481e-08
-## 219998_at     0.7526059  9.276269  8.354274 4.874344e-08 4.874344e-08
-## 220046_s_at  -1.4771358 10.598902 -8.160025 7.098560e-08 7.098560e-08
-## 223394_at    -1.4103411 10.909886 -8.057437 8.674876e-08 8.674876e-08
-##                     B
-## 200912_s_at  9.164826
-## 220468_at    9.043771
-## 1555411_a_at 8.530373
-## 219998_at    8.481081
-## 220046_s_at  8.143385
-## 223394_at    7.962661
+##       cs.slope.beta...con.slope.beta cs.int.alpha...con.int.alpha
+## 3744                      0.11407096                  -0.59479660
+## 7458                      0.07394082                   0.16551666
+## 3518                     -0.06287376                  -0.22069666
+## 9409                     -0.05928858                  -0.09262906
+## 4984                     -0.05748477                   0.17577142
+## 11888                    -0.08990708                  -0.05931571
+##         AveExpr         F      P.Value    adj.P.Val
+## 3744  12.717558 132.87049 1.805330e-12 1.805330e-12
+## 7458  12.362832 110.74610 1.011035e-11 1.011035e-11
+## 3518  11.804249  83.69787 1.355424e-10 1.355424e-10
+## 9409  11.218826  76.57433 3.043654e-10 3.043654e-10
+## 4984  10.092374  75.50078 3.458017e-10 3.458017e-10
+## 11888  9.748163  73.60875 4.347421e-10 4.347421e-10
 ```
 
 ```r
@@ -1435,32 +1517,32 @@ nrow(tT.combined)
 ```
 
 ```
-## [1] 716
+## [1] 1435
 ```
 
 So 716 significant genes at p < 0.001
 
 
 ```r
-tT.combined.sig.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+tT.combined.sig.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf, p.value = 0.05)
 head(tT.combined.sig.fdr)
 ```
 
 ```
-##                   logFC   AveExpr         t      P.Value    adj.P.Val
-## 200912_s_at  -0.8757283 14.071987 -8.758345 2.265589e-08 0.0002770699
-## 220468_at    -2.9173263  6.488711 -8.685713 2.596057e-08 0.0002770699
-## 1555411_a_at -1.4826165 10.243140 -8.382913 4.613481e-08 0.0002770699
-## 219998_at     0.7526059  9.276269  8.354274 4.874344e-08 0.0002770699
-## 220046_s_at  -1.4771358 10.598902 -8.160025 7.098560e-08 0.0003227999
-## 223394_at    -1.4103411 10.909886 -8.057437 8.674876e-08 0.0003287344
-##                     B
-## 200912_s_at  9.164826
-## 220468_at    9.043771
-## 1555411_a_at 8.530373
-## 219998_at    8.481081
-## 220046_s_at  8.143385
-## 223394_at    7.962661
+##       cs.slope.beta...con.slope.beta cs.int.alpha...con.int.alpha
+## 3744                      0.11407096                  -0.59479660
+## 7458                      0.07394082                   0.16551666
+## 3518                     -0.06287376                  -0.22069666
+## 9409                     -0.05928858                  -0.09262906
+## 4984                     -0.05748477                   0.17577142
+## 11888                    -0.08990708                  -0.05931571
+##         AveExpr         F      P.Value    adj.P.Val
+## 3744  12.717558 132.87049 1.805330e-12 4.104779e-08
+## 7458  12.362832 110.74610 1.011035e-11 1.149396e-07
+## 3518  11.804249  83.69787 1.355424e-10 1.027276e-06
+## 9409  11.218826  76.57433 3.043654e-10 1.462328e-06
+## 4984  10.092374  75.50078 3.458017e-10 1.462328e-06
+## 11888  9.748163  73.60875 4.347421e-10 1.462328e-06
 ```
 
 ```r
@@ -1468,7 +1550,7 @@ nrow(tT.combined.sig.fdr)
 ```
 
 ```
-## [1] 1006
+## [1] 2585
 ```
 
 And 1006 significant genes with FDR correction and p < 0.05.  
@@ -1486,7 +1568,7 @@ tT.combined$ProbeID %in% tT.treatment$ProbeID %>% # listing the smaller length l
 ```
 
 ```
-## [1] 418
+## [1] 0
 ```
 
 Okay, we've got an overlap of 418 genes, I'd say that's expected.  
@@ -1961,7 +2043,7 @@ yeast.fg
 ## 9    1769321_at               AIF1         YNR074C     c2  1.687596
 ## 10 1769322_s_at                          YLR154C-H     c2  5.535851
 ## ..          ...                ...             ...    ...       ...
-## Variables not shown: group (chr)
+## Variables not shown: group (chr).
 ```
 
 ```r
@@ -1979,7 +2061,7 @@ tail(yeast.fg)
 ## 4        AFFX-YFL039CM_at               ACT1         YFL039C     c3
 ## 5 RPTR-Sc-AF298789-1_s_at               TRP1         YDR007W     c3
 ## 6   RPTR-Sc-K01486-1_s_at               GAL4         YPL248C     c3
-## Variables not shown: intensity (dbl), group (chr)
+## Variables not shown: intensity (dbl), group (chr).
 ```
 
 
@@ -1993,4 +2075,4 @@ p + geom_density(aes(fill = intensity)) +
 
 
 ********
-This page was last updated on  Sunday, March 13, 2016 at 05:07PM
+This page was last updated on  Sunday, March 13, 2016 at 10:23PM

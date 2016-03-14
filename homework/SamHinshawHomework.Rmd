@@ -564,7 +564,8 @@ Because we've set the p.value of our `topTable` output to 0.05 with an FDR adjus
 Let's pick up where we left off before 3.1, this time setting time in our design matrix.  
 ```{r}
 design.matrix.time <- model.matrix(~hours, design)
-# contrast.matrix.time <- makeContrasts(hours, levels = design.matrix.time) # this step is unnecessary!
+# colnames(design.matrix.time) <- c("intercept", "hours")
+# contrast.matrix.time <- makeContrasts(hours-intercept, levels = design.matrix.time) # this step is unnecessary!
 ## Let's make sure this looks right:
 design.matrix.time %>% kable("markdown")
 fit.time <- lmFit(fitdata, design.matrix.time)
@@ -590,10 +591,17 @@ p + geom_histogram(binwidth = 1e-3) +
 ## That's actually not so meaningful since we've filtered on all p-values under 0.001
 
 # topTable.time$ProbeID <- row.names(topTable.time)
-tT.time.sig.fdr <- topTable(efit.time, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+tT.time.sig.fdr <- topTable(efit.time, adjust = "fdr", number = Inf, p.value = 0.05)
 # topTable.time.sig.fdr$ProbeID <- row.names(topTable.time.sig.fdr)
 nrow(tT.time.sig.fdr)
 head(tT.time.sig.fdr)
+
+tT.time.sig.fdr %>% arrange(-logFC) %>% head() # as you can see the effect sizes are very small
+## so the slopes may be statistically different, but in practice, there's not much of a change. 
+## this makes sense because we're not properly modelling the system
+## Biologically speaking, we would expect to NOT see a difference in control over time
+## but we WOULD expect to see a difference in CS over time
+## and by not separating those two groups, we're losing power to detect a slope difference
 
 p <- ggplot(tT.time.sig.fdr, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 1e-3) + 
@@ -609,12 +617,36 @@ Let's go straight to question 5 and come back to this one.
 
 ## 5.1 Quantify the number of hits for treatment
 ```{r}
-design.matrix.combined <- model.matrix(~0 + Treatment * hours, design)
-colnames(design.matrix.combined) <- c("cs", "control", "hours", "control.hours")
-contrast.matrix.combined <- makeContrasts(control.hours-cs-hours+control, levels = design.matrix.combined)
+design %<>% 
+	arrange(hours)
+colnames(data)
+# design.matrix.combined <- model.matrix(~0 + (hours * Treatment), design) ## this isn't working!
+design.matrix.combined <- data.frame(
+	"cs.int.alpha" = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 
+	"cs.slope.beta" = c(1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+	"con.int.alpha" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 
+	"con.slope.beta" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24)
+	)
+## Let's reorder fitdata to be safe we WANT
+design %>% arrange(Treatment)
+## Looks good
+fitdata <- fitdata[c("GSE10718_Biomat_16", "GSE10718_Biomat_17", "GSE10718_Biomat_19",
+					 "GSE10718_Biomat_20", "GSE10718_Biomat_21", "GSE10718_Biomat_22",
+					 "GSE10718_Biomat_23", "GSE10718_Biomat_24", "GSE10718_Biomat_4", 
+					 "GSE10718_Biomat_5", "GSE10718_Biomat_6", "GSE10718_Biomat_10", 
+					 "GSE10718_Biomat_11", "GSE10718_Biomat_12", "GSE10718_Biomat_7", 
+					 "GSE10718_Biomat_8", "GSE10718_Biomat_9", "GSE10718_Biomat_13", 
+					 "GSE10718_Biomat_14", "GSE10718_Biomat_15", "GSE10718_Biomat_1", 
+					 "GSE10718_Biomat_2", "GSE10718_Biomat_3")]
+## Hopefully this works...
+design.matrix.combined %>% kable("markdown")
+# colnames(design.matrix.combined) <- c("cs", "control", "hours", "control.hours")
+contrast.matrix.combined <- makeContrasts(cs.slope.beta-con.slope.beta,
+										  # cs.slope.beta, con.slope.beta, 
+										  cs.int.alpha-con.int.alpha,  
+										  levels = design.matrix.combined)
 # contrast.matrix.combined <- makeContrasts(control.hours-cs-hours+control, levels = design.matrix.combined)
 ## Let's make sure this looks right:
-design.matrix.combined %>% kable("markdown")
 fit.combined <- lmFit(fitdata, design.matrix.combined)
 fit.combined <- contrasts.fit(fit.combined, contrast.matrix.combined)
 efit.combined <- eBayes(fit.combined)
@@ -638,7 +670,7 @@ nrow(tT.combined)
 So 716 significant genes at p < 0.001
 
 ```{r}
-tT.combined.sig.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+tT.combined.sig.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf, p.value = 0.05)
 head(tT.combined.sig.fdr)
 nrow(tT.combined.sig.fdr)
 ```
