@@ -1655,6 +1655,63 @@ ggplot(yeast, aes(x = b3, y = c2)) + geom_point() + ggtitle("Pairwise sample-sam
 
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-26-3.png)
 
+I bet we could've faceted that. 
+
+```r
+gath.yeast %<>% 
+	mutate(group = gsub("[0-9]$", "", sample))
+gath.yeast %<>% 
+	mutate(group = gsub("^b$", "batch", group))
+gath.yeast %<>% 
+	mutate(group = gsub("^c$", "chemostat", group))
+gath.yeast
+```
+
+```
+## Source: local data frame [65,568 x 4]
+## 
+##         probeID sample intensity group
+##           (chr)  (chr)     (dbl) (chr)
+## 1    1769308_at     b1 11.145506 batch
+## 2    1769309_at     b1  2.164329 batch
+## 3    1769310_at     b1  1.488300 batch
+## 4    1769311_at     b1  9.006138 batch
+## 5    1769312_at     b1  6.945715 batch
+## 6    1769313_at     b1  7.815192 batch
+## 7    1769314_at     b1  8.658098 batch
+## 8    1769315_at     b1  1.395614 batch
+## 9  1769316_s_at     b1  1.905238 batch
+## 10   1769317_at     b1  6.961356 batch
+## ..          ...    ...       ...   ...
+```
+
+```r
+tail(gath.yeast)
+```
+
+```
+## Source: local data frame [6 x 4]
+## 
+##                 probeID sample intensity     group
+##                   (chr)  (chr)     (dbl)     (chr)
+## 1   RPTR-Sc-U89963-1_at     c3  1.039859 chemostat
+## 2 RPTR-Sc-U89963-1_s_at     c3  1.419373 chemostat
+## 3   RPTR-Sc-X03453-1_at     c3  1.100052 chemostat
+## 4   RPTR-Sc-X58791-1_at     c3  1.387374 chemostat
+## 5 RPTR-Sc-X58791-1_s_at     c3  1.068312 chemostat
+## 6 RPTR-Sc-X58791-2_s_at     c3  2.508159 chemostat
+```
+
+
+```r
+p <- ggplot(gath.yeast, aes(x = sample))
+p + geom_density(aes(fill = intensity)) + 
+	facet_wrap( ~ group) + ggtitle("Log2 Intensities of Samples")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-28-1.png)
+
+
 Looks pretty good!
 
 Let's compute the pearson distance between samples. 
@@ -1672,7 +1729,7 @@ ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) +
 	scale_fill_gradientn(colors = heatmapcolors)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-29-1.png)
 
 Okay, now let's rearrange based on what we decided from our pairwise sample-sample scatterplots and what looks like some obvious clustering in our first heatmap.
 
@@ -1686,7 +1743,7 @@ ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) +
 	scale_fill_gradientn(colors = heatmapcolors)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-28-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-30-1.png)
 
 This makes it seem rather apparent that b1, c1, and c3 are part of one group, and c2, b3, and b2 are part of another group.  Either that or there are some serious flaws with these microarrays.  
 
@@ -1702,7 +1759,7 @@ gath.yeast %>%
 	ylab("probeID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-29-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-31-1.png)
 
 And now with our samples sorted into what we believe to be the true groups.  
 
@@ -1719,7 +1776,7 @@ gath.yeast %>%
 	ylab("probeID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-30-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-32-1.png)
 
 Finally, how about PCA? We can use `FactoMineR::PCA` to get a simple plot, or use `stats::prcomp` for an object we can pipe into `ggplot2`.  
 
@@ -1731,7 +1788,7 @@ noProbes.yeast$probeID <- NULL
 fPCA <- FactoMineR::PCA(noProbes.yeast, scale.unit = FALSE)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-31-1.png)![](SamHinshawHomework_files/figure-html/unnamed-chunk-31-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-1.png)![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-2.png)
 
 ```r
 sPCA <- stats::prcomp(noProbes.yeast, scale. = FALSE)
@@ -1761,7 +1818,7 @@ ggplot(PCA.rotation, aes(x = PC1, y = PC2, label = rownames(PCA.rotation))) +
 	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-32-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-1.png)
 
 Note that we get a different looking distribution if we scale our values. Regardless, the clustering is obvious, and our principal components are the same.  
 
@@ -1789,7 +1846,7 @@ ggplot(PCA.rotation.scaled, aes(x = PC1, y = PC2, label = rownames(PCA.rotation)
 	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-35-1.png)
 
 Finally, if we also wanted to plot our observations, we could use the `ggbiplot` package.  
 
@@ -1802,7 +1859,7 @@ g + scale_color_discrete(name = '') +
 	ggtitle("PCA Plot of Yeast Samples")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-36-1.png)
 
 Given all of these plots, we can not satisfactorally conclude that samples b1 and c2 have accidentally been swapped. Let's fix that and continue!
 
@@ -1879,25 +1936,61 @@ yeast.fg <- yeast.fixed %>% # for yeast, fixed & gathered
 And then we can bring in qualitative data.  We can really just create our own data.frame for this.
 
 ```r
-(yeast.pheno <- data.frame("sample" = c("b1", "b2", "b3", "c1", "c2", "c3"), "treatment" = c("batch", "batch", "batch", "chemostat", "chemostat", "chemostat")) %>% tbl_df)
+yeast.fg %<>% 
+	mutate(group = gsub("[0-9]$", "", sample))
+yeast.fg %<>% 
+	mutate(group = gsub("^b$", "batch", group))
+yeast.fg %<>% 
+	mutate(group = gsub("^c$", "chemostat", group))
+yeast.fg
 ```
 
 ```
-## Source: local data frame [6 x 2]
+## Source: local data frame [37,554 x 6]
 ## 
-##   sample treatment
-##   (fctr)    (fctr)
-## 1     b1     batch
-## 2     b2     batch
-## 3     b3     batch
-## 4     c1 chemostat
-## 5     c2 chemostat
-## 6     c3 chemostat
+##         probeID external_gene_name ensembl_gene_id sample intensity
+##           (chr)              (chr)           (chr)  (chr)     (dbl)
+## 1    1769308_at               FOX2         YKR009C     c2 11.145506
+## 2    1769311_at                            YDL157C     c2  9.006138
+## 3    1769312_at               PCL6         YER059W     c2  6.945715
+## 4    1769313_at               PKP2         YGL059W     c2  7.815192
+## 5    1769314_at               PHO8         YDR481C     c2  8.658098
+## 6    1769317_at               DAT1         YML113W     c2  6.961356
+## 7    1769319_at               COA1         YIL157C     c2  9.362238
+## 8    1769320_at                            YPR003C     c2  5.743091
+## 9    1769321_at               AIF1         YNR074C     c2  1.687596
+## 10 1769322_s_at                          YLR154C-H     c2  5.535851
+## ..          ...                ...             ...    ...       ...
+## Variables not shown: group (chr)
 ```
 
 ```r
-# yeast.fg %<>% inner_join(yeast.fg, yeast.pheno, by = "sample")
+tail(yeast.fg)
 ```
 
+```
+## Source: local data frame [6 x 6]
+## 
+##                   probeID external_gene_name ensembl_gene_id sample
+##                     (chr)              (chr)           (chr)  (chr)
+## 1        AFFX-YER148wM_at              SPT15         YER148W     c3
+## 2        AFFX-YFL039C3_at               ACT1         YFL039C     c3
+## 3        AFFX-YFL039C5_at               ACT1         YFL039C     c3
+## 4        AFFX-YFL039CM_at               ACT1         YFL039C     c3
+## 5 RPTR-Sc-AF298789-1_s_at               TRP1         YDR007W     c3
+## 6   RPTR-Sc-K01486-1_s_at               GAL4         YPL248C     c3
+## Variables not shown: intensity (dbl), group (chr)
+```
+
+
+```r
+p <- ggplot(yeast.fg, aes(x = sample))
+p + geom_density(aes(fill = intensity)) + 
+	facet_wrap( ~ group) + ggtitle("Log2 Intensities of Samples")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-40-1.png)
+
+
 ********
-This page was last updated on  Sunday, March 13, 2016 at 04:47PM
+This page was last updated on  Sunday, March 13, 2016 at 05:07PM

@@ -732,6 +732,25 @@ ggplot(yeast, aes(x = b2, y = c2)) + geom_point() + ggtitle("Pairwise sample-sam
 ggplot(yeast, aes(x = b3, y = c2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
 ```
 
+I bet we could've faceted that. 
+```{r}
+gath.yeast %<>% 
+	mutate(group = gsub("[0-9]$", "", sample))
+gath.yeast %<>% 
+	mutate(group = gsub("^b$", "batch", group))
+gath.yeast %<>% 
+	mutate(group = gsub("^c$", "chemostat", group))
+gath.yeast
+tail(gath.yeast)
+```
+
+```{r}
+p <- ggplot(gath.yeast, aes(x = sample))
+p + geom_density(aes(fill = intensity)) + 
+	facet_wrap( ~ group) + ggtitle("Log2 Intensities of Samples")
+```
+
+
 Looks pretty good!
 
 Let's compute the pearson distance between samples. 
@@ -861,9 +880,22 @@ yeast.fg <- yeast.fixed %>% # for yeast, fixed & gathered
 
 And then we can bring in qualitative data.  We can really just create our own data.frame for this.
 ```{r}
-(yeast.pheno <- data.frame("sample" = c("b1", "b2", "b3", "c1", "c2", "c3"), "treatment" = c("batch", "batch", "batch", "chemostat", "chemostat", "chemostat")) %>% tbl_df)
-# yeast.fg %<>% inner_join(yeast.fg, yeast.pheno, by = "sample")
+yeast.fg %<>% 
+	mutate(group = gsub("[0-9]$", "", sample))
+yeast.fg %<>% 
+	mutate(group = gsub("^b$", "batch", group))
+yeast.fg %<>% 
+	mutate(group = gsub("^c$", "chemostat", group))
+yeast.fg
+tail(yeast.fg)
 ```
+
+```{r}
+p <- ggplot(yeast.fg, aes(x = sample))
+p + geom_density(aes(fill = intensity)) + 
+	facet_wrap( ~ group) + ggtitle("Log2 Intensities of Samples")
+```
+
 
 ********
 This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`
