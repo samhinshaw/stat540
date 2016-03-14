@@ -30,6 +30,7 @@ suppressPackageStartupMessages({
 	library(viridis)
 	library(dplyr)
 	library(cowplot)
+	library(GGally)
 })
 ```
 
@@ -1146,6 +1147,23 @@ ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) +
 
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-14-1.png)
 
+Let's also sort just on time
+
+```r
+topHits %<>% 
+	arrange(hours, Treatment)
+topHits$treatment.factor <- 1:nrow(topHits)
+topHits %<>% 
+	mutate(qualitative = reorder(qualitative, treatment.factor, max))
+ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_viridis() + xlab("Sample") +
+	ylab("HGNC Symbol (p-value)")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-15-1.png)
+
 >*What is the (estimated) false discovery rate of this “hits” list? How many of these hits do we expect to be false discoveries?*
 
 Because we've set the p.value of our `topTable` output to 0.05 with an FDR adjustment (`topTable(efit, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")`), we would expect our adjusted values to have an FDR of 0.05.  This means that in a list of 50 genes, we would expect to see 2.5 genes as false discoveries. 
@@ -1227,7 +1245,7 @@ results.time <- decideTests(efit.time)
 vennDiagram(results.time)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-15-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-16-1.png)
 
 Interesting so far, let's continue.
 
@@ -1276,7 +1294,7 @@ p + geom_histogram(binwidth = 1e-3) +
 	ggtitle("P-Value Distribution of Significant Genes") + xlim(0, 0.05)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-16-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-17-1.png)
 
 ```r
 ## That's actually not so meaningful since we've filtered on all p-values under 0.001
@@ -1346,7 +1364,7 @@ p + geom_histogram(binwidth = 1e-3) +
 	ggtitle("P-Value Distribution of Significant Genes \n corrected with FDR = 0.05")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-16-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-17-2.png)
 
 Alright, that's looking much better. We've got 958 hits with p-value under 0.001, and 1451 hits with FDR and p-value under 0.05.  
 
@@ -1385,10 +1403,10 @@ design.matrix.combined <- data.frame(
 					 "GSE10718_Biomat_8", "GSE10718_Biomat_9", "GSE10718_Biomat_13", 
 					 "GSE10718_Biomat_14", "GSE10718_Biomat_15", "GSE10718_Biomat_1", 
 					 "GSE10718_Biomat_2", "GSE10718_Biomat_3"),
-	"cs.int.alpha" = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 
-	"cs.slope.beta" = c(1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-	"con.int.alpha" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 
-	"con.slope.beta" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24)
+	"int.alpha.cs" = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 
+	"slope.beta.cs" = c(1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+	"int.alpha.con" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 
+	"slope.beta.con" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24)
 	)
 ## Let's reorder fitdata to be safe we WANT
 design %>% arrange(Treatment, hours)
@@ -1430,7 +1448,7 @@ design.matrix.combined %>% kable("markdown")
 
 
 
-|                   | cs.int.alpha| cs.slope.beta| con.int.alpha| con.slope.beta|
+|                   | int.alpha.cs| slope.beta.cs| int.alpha.con| slope.beta.con|
 |:------------------|------------:|-------------:|-------------:|--------------:|
 |GSE10718_Biomat_16 |            1|             1|             0|              0|
 |GSE10718_Biomat_17 |            1|             1|             0|              0|
@@ -1458,9 +1476,9 @@ design.matrix.combined %>% kable("markdown")
 
 ```r
 # colnames(design.matrix.combined) <- c("cs", "control", "hours", "control.hours")
-contrast.matrix.combined <- makeContrasts(cs.slope.beta-con.slope.beta,
-										  # cs.slope.beta, con.slope.beta, # We'd like to know if these are > 0, but not key
-										  cs.int.alpha-con.int.alpha,  
+contrast.matrix.combined <- makeContrasts("combined" = slope.beta.cs-slope.beta.con, # combined effect
+										  "time" = slope.beta.con, # Time effect alone
+										  "treatment" = int.alpha.cs-int.alpha.con, # treatment effect alone
 										  levels = design.matrix.combined)
 
 # contrast.matrix.combined <- makeContrasts(control.hours-cs-hours+control, levels = design.matrix.combined)
@@ -1475,86 +1493,42 @@ tT.combined %>% head() %>% kable("markdown")
 
 
 
-|      | cs.slope.beta...con.slope.beta| cs.int.alpha...con.int.alpha|   AveExpr|         F| P.Value| adj.P.Val|
-|:-----|------------------------------:|----------------------------:|---------:|---------:|-------:|---------:|
-|3744  |                      0.1140710|                   -0.5947966| 12.717558| 132.87049|       0|   0.0e+00|
-|7458  |                      0.0739408|                    0.1655167| 12.362832| 110.74610|       0|   1.0e-07|
-|3518  |                     -0.0628738|                   -0.2206967| 11.804249|  83.69787|       0|   1.0e-06|
-|9409  |                     -0.0592886|                   -0.0926291| 11.218826|  76.57433|       0|   1.5e-06|
-|4984  |                     -0.0574848|                    0.1757714| 10.092374|  75.50078|       0|   1.5e-06|
-|11888 |                     -0.0899071|                   -0.0593157|  9.748163|  73.60875|       0|   1.5e-06|
+|     |   combined|       time|  treatment|  AveExpr|         F| P.Value| adj.P.Val|
+|:----|----------:|----------:|----------:|--------:|---------:|-------:|---------:|
+|7458 |  0.0739408|  0.0201602|  0.1655167| 12.36283| 156.55408|       0|         0|
+|3518 | -0.0628738| -0.0264743| -0.2206967| 11.80425| 133.84586|       0|         0|
+|4984 | -0.0574848| -0.0106430|  0.1757714| 10.09237| 123.82646|       0|         0|
+|3744 |  0.1140710| -0.0336863| -0.5947966| 12.71756| 101.30302|       0|         0|
+|9409 | -0.0592886| -0.0068828| -0.0926291| 11.21883|  90.07826|       0|         0|
+|5730 | -0.0478785| -0.0200716|  0.1316914| 10.96036|  86.82289|       0|         0|
 
 ```r
 results.combined <- decideTests(efit.combined)
 vennDiagram(results.combined)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-17-1.png)
-
-Let's also contrast our slopes to zero.  This will tell us if time had any effect on either of the treatments.  We will expect to see greater number of differentially expressed (DE) genes in the cigarette smoke group here. 
-
-```r
-contrast.matrix.slope <- makeContrasts(cs.slope.beta, con.slope.beta,  
-										  levels = design.matrix.combined)
-
-fit.combined.slope <- lmFit(fitdata, design.matrix.combined)
-fit.combined.slope <- contrasts.fit(fit.combined.slope, contrast.matrix.slope)
-efit.combined.slope <- eBayes(fit.combined.slope)
-tT.combined.slope <- topTable(efit.combined.slope)
-tT.combined.slope %>% kable("markdown")
-```
-
-
-
-|      | cs.slope.beta| con.slope.beta|  AveExpr|         F| P.Value| adj.P.Val|
-|:-----|-------------:|--------------:|--------:|---------:|-------:|---------:|
-|7458  |     0.0941010|      0.0201602| 12.36283| 169.65044|       0|     0e+00|
-|4984  |    -0.0681277|     -0.0106430| 10.09237| 166.63312|       0|     0e+00|
-|3518  |    -0.0893481|     -0.0264743| 11.80425| 145.97913|       0|     0e+00|
-|3744  |     0.0803847|     -0.0336863| 12.71756| 140.14694|       0|     0e+00|
-|5730  |    -0.0679500|     -0.0200716| 10.96036| 119.68427|       0|     0e+00|
-|3602  |    -0.0802192|     -0.0192275| 11.74982| 110.12311|       0|     0e+00|
-|14305 |    -0.0674208|     -0.0050613| 11.25113|  95.86420|       0|     1e-07|
-|2800  |    -0.0663600|     -0.0085517| 11.06923|  94.47768|       0|     1e-07|
-|9409  |    -0.0661714|     -0.0068828| 11.21883|  93.43296|       0|     1e-07|
-|3427  |    -0.0682500|     -0.0192394| 12.15344|  92.50125|       0|     1e-07|
-
-```r
-results.combined.slope <- decideTests(efit.combined.slope)
-vennDiagram(results.combined.slope)
-```
-
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-18-1.png)
 
-Fantastic!!
+Woohoo! Now I've effectively modeled all 3 biological scenarios.
 
-
-Doesn't look too bad, but I'm still struggling to figure out exactly what this is modelling. Let's push ahead and I'll come back to this.
 
 >*For how many probes is treatment a significant factor at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
 
 
 ```r
-tT.combined <- topTable(efit.combined, adjust = "none", number = Inf, p.value = 1e-3)
+tT.combined <- topTable(efit.combined, coef = 1, adjust = "none", number = Inf, p.value = 1e-3)
 # here, we should see that P.Value = adj.P.Val
 head(tT.combined)
 ```
 
 ```
-##       cs.slope.beta...con.slope.beta cs.int.alpha...con.int.alpha
-## 3744                      0.11407096                  -0.59479660
-## 7458                      0.07394082                   0.16551666
-## 3518                     -0.06287376                  -0.22069666
-## 9409                     -0.05928858                  -0.09262906
-## 4984                     -0.05748477                   0.17577142
-## 11888                    -0.08990708                  -0.05931571
-##         AveExpr         F      P.Value    adj.P.Val
-## 3744  12.717558 132.87049 1.805330e-12 1.805330e-12
-## 7458  12.362832 110.74610 1.011035e-11 1.011035e-11
-## 3518  11.804249  83.69787 1.355424e-10 1.355424e-10
-## 9409  11.218826  76.57433 3.043654e-10 3.043654e-10
-## 4984  10.092374  75.50078 3.458017e-10 3.458017e-10
-## 11888  9.748163  73.60875 4.347421e-10 4.347421e-10
+##             logFC   AveExpr         t      P.Value    adj.P.Val        B
+## 3744   0.11407096 12.717558  15.62029 7.330143e-13 7.330143e-13 18.74367
+## 4984  -0.05748477 10.092374 -10.88237 5.614508e-10 5.614508e-10 12.88580
+## 13791  0.09283685 10.118466  10.83328 6.079864e-10 6.079864e-10 12.81248
+## 4470   0.06311515  9.928981  10.38754 1.267943e-09 1.267943e-09 12.13288
+## 7458   0.07394082 12.362832  10.11488 2.009574e-09 2.009574e-09 11.70463
+## 14478  0.08089615 11.269709  10.06428 2.190960e-09 2.190960e-09 11.62406
 ```
 
 ```r
@@ -1562,32 +1536,25 @@ nrow(tT.combined)
 ```
 
 ```
-## [1] 1435
+## [1] 573
 ```
 
-So 1435 significant genes at p < 0.001
+So 573 significant genes at p < 0.001 when looking at combined effect.
 
 
 ```r
-tT.combined.sig.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf, p.value = 0.05)
+tT.combined.sig.fdr <- topTable(efit.combined, coef = 1, adjust = "fdr", number = Inf, p.value = 0.05)
 head(tT.combined.sig.fdr)
 ```
 
 ```
-##       cs.slope.beta...con.slope.beta cs.int.alpha...con.int.alpha
-## 3744                      0.11407096                  -0.59479660
-## 7458                      0.07394082                   0.16551666
-## 3518                     -0.06287376                  -0.22069666
-## 9409                     -0.05928858                  -0.09262906
-## 4984                     -0.05748477                   0.17577142
-## 11888                    -0.08990708                  -0.05931571
-##         AveExpr         F      P.Value    adj.P.Val
-## 3744  12.717558 132.87049 1.805330e-12 4.104779e-08
-## 7458  12.362832 110.74610 1.011035e-11 1.149396e-07
-## 3518  11.804249  83.69787 1.355424e-10 1.027276e-06
-## 9409  11.218826  76.57433 3.043654e-10 1.462328e-06
-## 4984  10.092374  75.50078 3.458017e-10 1.462328e-06
-## 11888  9.748163  73.60875 4.347421e-10 1.462328e-06
+##             logFC   AveExpr         t      P.Value    adj.P.Val        B
+## 3744   0.11407096 12.717558  15.62029 7.330143e-13 1.666655e-08 18.74367
+## 4984  -0.05748477 10.092374 -10.88237 5.614508e-10 4.607929e-06 12.88580
+## 13791  0.09283685 10.118466  10.83328 6.079864e-10 4.607929e-06 12.81248
+## 4470   0.06311515  9.928981  10.38754 1.267943e-09 7.207303e-06 12.13288
+## 7458   0.07394082 12.362832  10.11488 2.009574e-09 8.302642e-06 11.70463
+## 14478  0.08089615 11.269709  10.06428 2.190960e-09 8.302642e-06 11.62406
 ```
 
 ```r
@@ -1595,10 +1562,10 @@ nrow(tT.combined.sig.fdr)
 ```
 
 ```
-## [1] 2585
+## [1] 664
 ```
 
-And 2585 significant genes with FDR correction and p < 0.05.  
+And 664 significant genes with FDR correction and p < 0.05.  
 
 >*Is this number different from what you reported in 3.2? Why? Quantify the proportion of overlapping probes among your hits, when using the unadjusted p-value threshold of 1e-3.*
 
@@ -1634,7 +1601,7 @@ p + geom_histogram(binwidth = 0.01) +
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-22-1.png)
 
 ```r
-tT.combined.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf)
+tT.combined.fdr <- topTable(efit.combined, coef = 1, adjust = "fdr", number = Inf)
 
 p <- ggplot(tT.combined.fdr, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 0.01) + 
@@ -1651,7 +1618,17 @@ The p-value distributions look very similar when compared directly, but it seems
 >*Explain in English what you are modeling with this interaction term (what does it represent?).*
 >*For how many probes is the interaction effect significant at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
 
+>*Null hypothesis: there’s no significant interaction between time and treatment.*
+
+With this interaction terms, we are modeling both the slope and intercept of both treatment and control groups.  Then, we can model all three scenarios:  
+1. Treatment: Intercept of CS (int.alpha.cs) different than Intercept of Control (int.alpha.con)?  
+2. Time: Is the Slope of Control (slope.beta.con) different from zero?  
+3. Treatment & Time: Is the Slope of CS (slope.beta.cs) different from Slope of Control (slope.beta.con)?  
+
+
 ## 5.3 Plot a few probes where the interaction does and does not matter 
+
+
 
 # Microarray Analysis
 
@@ -1707,82 +1684,33 @@ gath.yeast <- yeast %>% gather("sample", "intensity", 2:7)
 
 We've got 10,928 probes (rows) and 6 samples in what appears to be two groups (b & c).  The first column is our probe ID column.  
 
-First off, let's plot some pairwise comparisons. 
+First off, let's plot some pairwise comparisons.
 
 ```r
-ggplot(yeast, aes(x = b1, y = b2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
+yeast %>% select(-probeID) %>% 
+	ggpairs(aes(alpha = 0.4)) + theme(
+		axis.text.x = element_blank(),
+		axis.text.y = element_blank(),
+		axis.ticks = element_blank()
+	)
 ```
 
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-1.png)
 
-```r
-ggplot(yeast, aes(x = b1, y = b3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-```
+Beautiful! I'm glad I found the `ggpairs()` function, that's made my life a lot easier.  
+We can see easily now, that we've got correlation between two groups:  
+- c1, b1, c3  
+- c2, b2, b3  
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-2.png)
+Perhaps we could presmue to group these
 
-```r
-ggplot(yeast, aes(x = b2, y = b3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-```
+| Chemostat? | Batch? |
+|------------|--------|
+| c1         | **c2** |
+| **b1**     | b2     |
+| c3         | b3     |
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-3.png)
-
-```r
-ggplot(yeast, aes(x = c1, y = c2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-```
-
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-4.png)
-
-```r
-ggplot(yeast, aes(x = c1, y = c3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-```
-
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-5.png)
-
-```r
-ggplot(yeast, aes(x = c2, y = c3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-```
-
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-6.png)
-
-Well, so far we can see that b2 & b3 look to be in the same group.  Similarly, c1 and c3 seem to be in the same group. 
-
-```r
-ggplot(yeast, aes(x = b1, y = c1)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-```
-
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-25-1.png)
-
-So do b1 & c1.  So it would see our first group is b1, c1, c3
-
-```r
-ggplot(yeast, aes(x = b1, y = c3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-```
-
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-26-1.png)
-
-Looks about right! That would leave b2, b3, and c2 correlated.  
-
-
-```r
-ggplot(yeast, aes(x = b2, y = b3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-```
-
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-1.png)
-
-```r
-ggplot(yeast, aes(x = b2, y = c2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-```
-
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-2.png)
-
-```r
-ggplot(yeast, aes(x = b3, y = c2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-```
-
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-3.png)
-
-I bet we could've faceted that. 
+Now let's add in our groups.  I tried to create a phenotype data frame and join, but it kept crashing my computer, so I'm just going to use some regex magic to create our treatment group column.  
 
 ```r
 gath.yeast %<>% 
@@ -1829,16 +1757,6 @@ tail(gath.yeast)
 ## 6 RPTR-Sc-X58791-2_s_at     c3  2.508159 chemostat
 ```
 
-
-```r
-p <- ggplot(gath.yeast, aes(x = sample))
-p + geom_density(aes(fill = intensity)) + 
-	facet_wrap( ~ group) + ggtitle("Log2 Intensities of Samples")
-```
-
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-29-1.png)
-
-
 Looks pretty good!
 
 Let's compute the pearson distance between samples. 
@@ -1856,7 +1774,7 @@ ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) +
 	scale_fill_gradientn(colors = heatmapcolors)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-30-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-26-1.png)
 
 Okay, now let's rearrange based on what we decided from our pairwise sample-sample scatterplots and what looks like some obvious clustering in our first heatmap.
 
@@ -1870,7 +1788,7 @@ ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) +
 	scale_fill_gradientn(colors = heatmapcolors)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-31-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-1.png)
 
 This makes it seem rather apparent that b1, c1, and c3 are part of one group, and c2, b3, and b2 are part of another group.  Either that or there are some serious flaws with these microarrays.  
 
@@ -1886,7 +1804,7 @@ gath.yeast %>%
 	ylab("probeID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-32-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-28-1.png)
 
 And now with our samples sorted into what we believe to be the true groups.  
 
@@ -1903,7 +1821,7 @@ gath.yeast %>%
 	ylab("probeID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-29-1.png)
 
 Finally, how about PCA? We can use `FactoMineR::PCA` to get a simple plot, or use `stats::prcomp` for an object we can pipe into `ggplot2`.  
 
@@ -1915,7 +1833,7 @@ noProbes.yeast$probeID <- NULL
 fPCA <- FactoMineR::PCA(noProbes.yeast, scale.unit = FALSE)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-1.png)![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-30-1.png)![](SamHinshawHomework_files/figure-html/unnamed-chunk-30-2.png)
 
 ```r
 sPCA <- stats::prcomp(noProbes.yeast, scale. = FALSE)
@@ -1945,7 +1863,7 @@ ggplot(PCA.rotation, aes(x = PC1, y = PC2, label = rownames(PCA.rotation))) +
 	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-35-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-31-1.png)
 
 Note that we get a different looking distribution if we scale our values. Regardless, the clustering is obvious, and our principal components are the same.  
 
@@ -1973,7 +1891,7 @@ ggplot(PCA.rotation.scaled, aes(x = PC1, y = PC2, label = rownames(PCA.rotation)
 	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-36-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-32-1.png)
 
 Finally, if we also wanted to plot our observations, we could use the `ggbiplot` package.  
 
@@ -1986,9 +1904,9 @@ g + scale_color_discrete(name = '') +
 	ggtitle("PCA Plot of Yeast Samples")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-37-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-1.png)
 
-Given all of these plots, we can not satisfactorally conclude that samples b1 and c2 have accidentally been swapped. Let's fix that and continue!
+Given all of these plots, we can now satisfactorally conclude that samples b1 and c2 have accidentally been swapped. Let's fix that and continue!
 
 ## 6.2 Microarray DEA (2 points)
 
@@ -2004,6 +1922,160 @@ colnames(yeast.fixed)
 
 ```r
 colnames(yeast.fixed) <- c("probeID", "c2", "b2", "b3", "c1", "b1", "c3")
+yeast.fixed <- yeast.fixed[
+	c("probeID",
+	  "b1", "b2", "b3", "c1", "c2", "c3")
+] 
+```
+
+Alrighty, now that we've got our gene IDs set up, let's bring in some qualitative data describing batch vs chemostat.  For this we'll need to gather our data first.  
+
+```r
+rownames(yeast.fixed) <- yeast.fixed$probeID
+yeast.fg <- yeast.fixed %>% # for yeast, fixed & gathered
+	gather("sample", "intensity", c(b1, b2, b3, c1, c2, c3))
+```
+
+And then we can bring in qualitative data.  We can really just create our own data.frame for this.
+
+```r
+yeast.fg %<>% 
+	mutate(group = gsub("[0-9]$", "", sample))
+yeast.fg %<>% 
+	mutate(group = gsub("^b$", "batch", group))
+yeast.fg %<>% 
+	mutate(group = gsub("^c$", "chemostat", group))
+yeast.fg
+```
+
+```
+## Source: local data frame [65,568 x 4]
+## 
+##         probeID sample intensity group
+##           (chr)  (chr)     (dbl) (chr)
+## 1    1769308_at     b1  6.698862 batch
+## 2    1769309_at     b1  3.047169 batch
+## 3    1769310_at     b1  2.079007 batch
+## 4    1769311_at     b1  9.276710 batch
+## 5    1769312_at     b1  6.900187 batch
+## 6    1769313_at     b1  6.564123 batch
+## 7    1769314_at     b1  8.807559 batch
+## 8    1769315_at     b1  1.539506 batch
+## 9  1769316_s_at     b1  1.746585 batch
+## 10   1769317_at     b1  7.225361 batch
+## ..          ...    ...       ...   ...
+```
+
+```r
+tail(yeast.fg)
+```
+
+```
+## Source: local data frame [6 x 4]
+## 
+##                 probeID sample intensity     group
+##                   (chr)  (chr)     (dbl)     (chr)
+## 1   RPTR-Sc-U89963-1_at     c3  1.039859 chemostat
+## 2 RPTR-Sc-U89963-1_s_at     c3  1.419373 chemostat
+## 3   RPTR-Sc-X03453-1_at     c3  1.100052 chemostat
+## 4   RPTR-Sc-X58791-1_at     c3  1.387374 chemostat
+## 5 RPTR-Sc-X58791-1_s_at     c3  1.068312 chemostat
+## 6 RPTR-Sc-X58791-2_s_at     c3  2.508159 chemostat
+```
+
+One last thing before we start with limma, we'll have to create a phenotype data.frame to construct our design matrix. 
+
+```r
+yeast.design <- data.frame(
+	row.names = c("b1", "b2", "b3", "c1", "c2", "c3"),
+	"sample" = c("b1", "b2", "b3", "c1", "c2", "c3"), 
+	"group"  = c("batch", "batch", "batch", "chemostat", "chemostat", "chemostat")
+) %>% tbl_df()
+```
+
+
+Alright, now on to our differential expression analysis (DEA) with limma.  
+
+```r
+design.matrix.yeast <- model.matrix(~0+group, yeast.design)
+colnames(design.matrix.yeast) <- c("Batch", "Chemostat")
+contrast.matrix.yeast <- makeContrasts(Batch-Chemostat, levels = design.matrix.yeast)
+## Let's make sure this looks right:
+design.matrix.yeast %>% kable("markdown")
+```
+
+
+
+|   | Batch| Chemostat|
+|:--|-----:|---------:|
+|b1 |     1|         0|
+|b2 |     1|         0|
+|b3 |     1|         0|
+|c1 |     0|         1|
+|c2 |     0|         1|
+|c3 |     0|         1|
+
+```r
+fit.yeast <- yeast.fixed %>% 
+	select(-probeID) %>% 
+	lmFit(design.matrix.yeast)
+fit.yeast <- contrasts.fit(fit.yeast, contrast.matrix.yeast)
+efit.yeast <- eBayes(fit.yeast)
+tT.yeast <- topTable(efit.yeast, adjust.method="BH", number = Inf) # I know BH is default, but it's still good to specify
+tT.yeast %>% head() %>% kable("markdown")
+```
+
+
+
+|           |      logFC|  AveExpr|          t| P.Value| adj.P.Val|        B|
+|:----------|----------:|--------:|----------:|-------:|---------:|--------:|
+|1772391_at | -10.111470| 7.043828| -108.92958|       0|         0| 20.96284|
+|1774122_at |  -8.473827| 6.852455|  -89.86550|       0|         0| 20.05204|
+|1774070_at |  -8.990866| 8.378757|  -80.69881|       0|         0| 19.47328|
+|1776153_at |  -7.304449| 5.427876|  -72.70264|       0|         0| 18.86696|
+|1774072_at |  -8.577513| 6.886731|  -71.30964|       0|         0| 18.74990|
+|1776304_at |  -8.081401| 6.729502|  -69.09726|       0|         0| 18.55620|
+
+```r
+results.yeast <- decideTests(efit.yeast)
+vennDiagram(results.yeast)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-38-1.png)
+
+Great! Let's check out our p-value distribution before we continue though
+
+```r
+p <- ggplot(tT.yeast, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 0.05) + 
+	xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution of Significant \n Genes with BH Correction")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-39-1.png)
+
+That looks pretty drastic, but I'm not sure it's wrong. Let's pull out our answers
+
+```r
+(tT.yeast %<>% tbl_df())
+```
+
+```
+## Source: local data frame [10,928 x 6]
+## 
+##         logFC  AveExpr          t      P.Value    adj.P.Val        B
+##         (dbl)    (dbl)      (dbl)        (dbl)        (dbl)    (dbl)
+## 1  -10.111470 7.043828 -108.92958 9.477652e-14 1.035718e-09 20.96284
+## 2   -8.473827 6.852455  -89.86550 4.277079e-13 2.336996e-09 20.05204
+## 3   -8.990866 8.378757  -80.69881 9.932237e-13 3.617983e-09 19.47328
+## 4   -7.304449 5.427876  -72.70264 2.248189e-12 5.717049e-09 18.86696
+## 5   -8.577513 6.886731  -71.30964 2.615780e-12 5.717049e-09 18.74990
+## 6   -8.081401 6.729502  -69.09726 3.347614e-12 5.881184e-09 18.55620
+## 7   -8.444769 7.037351  -67.77269 3.895175e-12 5.881184e-09 18.43543
+## 8   -8.926037 8.104420  -66.44446 4.547787e-12 5.881184e-09 18.31054
+## 9   -4.895122 7.692760  -65.91159 4.843582e-12 5.881184e-09 18.25934
+## 10  -6.053323 6.743367  -61.70349 8.116417e-12 8.521536e-09 17.83138
+## ..        ...      ...        ...          ...          ...      ...
 ```
 
 Here, I'll use biomaRt to get gene IDs and ensembl gene IDs.  We know from the homework that this experiment is using the Affymetrix Yeast Genome Array 2.0 platform, and we can do a quick check on GEO to confirm.  [GSE37599](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE37599), and [GPL2529](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL2529), Affymetrix Yeast Genome 2.0 Array.  Perfect!
@@ -2030,94 +2102,29 @@ head(yeast_probe_IDs)
 
 ```r
 colnames(yeast_probe_IDs)[3] <- "probeID"
-yeast.fixed <- inner_join(yeast.fixed, yeast_probe_IDs, by = "probeID")
+yeast.fixed <- left_join(yeast.fixed, yeast_probe_IDs, by = "probeID")
 yeast.fixed
 ```
 
 ```
-## Source: local data frame [6,259 x 9]
+## Source: local data frame [11,419 x 9]
 ## 
-##         probeID        c2       b2       b3        c1       b1        c3
-##           (chr)     (dbl)    (dbl)    (dbl)     (dbl)    (dbl)     (dbl)
-## 1    1769308_at 11.145506 6.795593 6.708003 10.945878 6.698862 11.070725
-## 2    1769311_at  9.006138 9.461821 9.234618  8.972233 9.276710  9.004997
-## 3    1769312_at  6.945715 6.895895 6.955463  6.851454 6.900187  6.892854
-## 4    1769313_at  7.815192 6.600131 6.534413  7.770245 6.564123  7.851777
-## 5    1769314_at  8.658098 8.788372 8.982260  8.572727 8.807559  8.657040
-## 6    1769317_at  6.961356 7.418890 7.258103  7.071840 7.225361  6.871157
-## 7    1769319_at  9.362238 9.174514 9.160608  9.413195 9.083989  9.305387
-## 8    1769320_at  5.743091 5.583712 5.543573  5.666377 5.443741  5.882802
-## 9    1769321_at  1.687596 1.936899 1.798421  1.818721 1.845609  1.466536
-## 10 1769322_s_at  5.535851 6.893833 6.692221  5.420552 6.503181  5.397739
-## ..          ...       ...      ...      ...       ...      ...       ...
-## Variables not shown: external_gene_name (chr), ensembl_gene_id (chr)
+##         probeID       b1       b2       b3        c1        c2        c3
+##           (chr)    (dbl)    (dbl)    (dbl)     (dbl)     (dbl)     (dbl)
+## 1    1769308_at 6.698862 6.795593 6.708003 10.945878 11.145506 11.070725
+## 2    1769309_at 3.047169 3.177408 3.128950  2.498308  2.164329  2.444188
+## 3    1769310_at 2.079007 1.427200 1.815698  1.462075  1.488300  1.623036
+## 4    1769311_at 9.276710 9.461821 9.234618  8.972233  9.006138  9.004997
+## 5    1769312_at 6.900187 6.895895 6.955463  6.851454  6.945715  6.892854
+## 6    1769313_at 6.564123 6.600131 6.534413  7.770245  7.815192  7.851777
+## 7    1769314_at 8.807559 8.788372 8.982260  8.572727  8.658098  8.657040
+## 8    1769315_at 1.539506 1.451431 1.639303  1.352827  1.395614  1.337297
+## 9  1769316_s_at 1.746585 1.918457 1.628470  1.724167  1.905238  1.518815
+## 10   1769317_at 7.225361 7.418890 7.258103  7.071840  6.961356  6.871157
+## ..          ...      ...      ...      ...       ...       ...       ...
+## Variables not shown: external_gene_name (chr), ensembl_gene_id (chr).
 ```
-
-Alrighty, now that we've got our gene IDs set up, let's bring in some qualitative data describing batch vs chemostat.  For this we'll need to gather our data first.  
-
-```r
-yeast.fg <- yeast.fixed %>% # for yeast, fixed & gathered
-	gather("sample", "intensity", 2:7)
-```
-
-And then we can bring in qualitative data.  We can really just create our own data.frame for this.
-
-```r
-yeast.fg %<>% 
-	mutate(group = gsub("[0-9]$", "", sample))
-yeast.fg %<>% 
-	mutate(group = gsub("^b$", "batch", group))
-yeast.fg %<>% 
-	mutate(group = gsub("^c$", "chemostat", group))
-yeast.fg
-```
-
-```
-## Source: local data frame [37,554 x 6]
-## 
-##         probeID external_gene_name ensembl_gene_id sample intensity
-##           (chr)              (chr)           (chr)  (chr)     (dbl)
-## 1    1769308_at               FOX2         YKR009C     c2 11.145506
-## 2    1769311_at                            YDL157C     c2  9.006138
-## 3    1769312_at               PCL6         YER059W     c2  6.945715
-## 4    1769313_at               PKP2         YGL059W     c2  7.815192
-## 5    1769314_at               PHO8         YDR481C     c2  8.658098
-## 6    1769317_at               DAT1         YML113W     c2  6.961356
-## 7    1769319_at               COA1         YIL157C     c2  9.362238
-## 8    1769320_at                            YPR003C     c2  5.743091
-## 9    1769321_at               AIF1         YNR074C     c2  1.687596
-## 10 1769322_s_at                          YLR154C-H     c2  5.535851
-## ..          ...                ...             ...    ...       ...
-## Variables not shown: group (chr).
-```
-
-```r
-tail(yeast.fg)
-```
-
-```
-## Source: local data frame [6 x 6]
-## 
-##                   probeID external_gene_name ensembl_gene_id sample
-##                     (chr)              (chr)           (chr)  (chr)
-## 1        AFFX-YER148wM_at              SPT15         YER148W     c3
-## 2        AFFX-YFL039C3_at               ACT1         YFL039C     c3
-## 3        AFFX-YFL039C5_at               ACT1         YFL039C     c3
-## 4        AFFX-YFL039CM_at               ACT1         YFL039C     c3
-## 5 RPTR-Sc-AF298789-1_s_at               TRP1         YDR007W     c3
-## 6   RPTR-Sc-K01486-1_s_at               GAL4         YPL248C     c3
-## Variables not shown: intensity (dbl), group (chr).
-```
-
-
-```r
-p <- ggplot(yeast.fg, aes(x = sample))
-p + geom_density(aes(fill = intensity)) + 
-	facet_wrap( ~ group) + ggtitle("Log2 Intensities of Samples")
-```
-
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-41-1.png)
 
 
 ********
-This page was last updated on  Monday, March 14, 2016 at 09:35AM
+This page was last updated on  Monday, March 14, 2016 at 12:11PM

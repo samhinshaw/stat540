@@ -38,6 +38,7 @@ suppressPackageStartupMessages({
 	library(viridis)
 	library(dplyr)
 	library(cowplot)
+	library(GGally)
 })
 ```
 
@@ -433,7 +434,7 @@ At last, something meaningful!! This sample correlates MOST those samples within
 
 ## 3.1 Linear Model
 ```{r}
-row.names(fitdata) <- fitdata$ProbeID
+rownames(fitdata) <- data$ProbeID
 fitdata$ProbeID <- NULL
 ```
 
@@ -483,9 +484,9 @@ tT.treatment <- topTable(efit, adjust = "none", number = Inf, p.value = 1e-3)
 # here, we should see that P.Value = adj.P.Val
 head(tT.treatment)
 nrow(tT.treatment)
-tT.treatment$ProbeID <- row.names(tT.treatment)
+tT.treatment$ProbeID <- rownames(tT.treatment)
 tT.treatment.sig.fdr <- topTable(efit, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
-tT.treatment.sig.fdr$ProbeID <- row.names(tT.treatment.sig.fdr)
+tT.treatment.sig.fdr$ProbeID <- rownames(tT.treatment.sig.fdr)
 nrow(tT.treatment.sig.fdr)
 head(tT.treatment.sig.fdr)
 ```
@@ -553,6 +554,20 @@ ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) +
 	ylab("HGNC Symbol (p-value)")
 ```
 
+Let's also sort just on time
+```{r, fig.height = 10, fig.width = 6}
+topHits %<>% 
+	arrange(hours, Treatment)
+topHits$treatment.factor <- 1:nrow(topHits)
+topHits %<>% 
+	mutate(qualitative = reorder(qualitative, treatment.factor, max))
+ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) + 
+	geom_tile() +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	scale_fill_viridis() + xlab("Sample") +
+	ylab("HGNC Symbol (p-value)")
+```
+
 >*What is the (estimated) false discovery rate of this “hits” list? How many of these hits do we expect to be false discoveries?*
 
 Because we've set the p.value of our `topTable` output to 0.05 with an FDR adjustment (`topTable(efit, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")`), we would expect our adjusted values to have an FDR of 0.05.  This means that in a list of 50 genes, we would expect to see 2.5 genes as false discoveries. 
@@ -590,9 +605,9 @@ p + geom_histogram(binwidth = 1e-3) +
 	ggtitle("P-Value Distribution of Significant Genes") + xlim(0, 0.05)
 ## That's actually not so meaningful since we've filtered on all p-values under 0.001
 
-# topTable.time$ProbeID <- row.names(topTable.time)
+# topTable.time$ProbeID <- rownames(topTable.time)
 tT.time.sig.fdr <- topTable(efit.time, adjust = "fdr", number = Inf, p.value = 0.05)
-# topTable.time.sig.fdr$ProbeID <- row.names(topTable.time.sig.fdr)
+# topTable.time.sig.fdr$ProbeID <- rownames(topTable.time.sig.fdr)
 nrow(tT.time.sig.fdr)
 head(tT.time.sig.fdr)
 
@@ -630,10 +645,10 @@ design.matrix.combined <- data.frame(
 					 "GSE10718_Biomat_8", "GSE10718_Biomat_9", "GSE10718_Biomat_13", 
 					 "GSE10718_Biomat_14", "GSE10718_Biomat_15", "GSE10718_Biomat_1", 
 					 "GSE10718_Biomat_2", "GSE10718_Biomat_3"),
-	"cs.int.alpha" = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 
-	"cs.slope.beta" = c(1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-	"con.int.alpha" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 
-	"con.slope.beta" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24)
+	"int.alpha.cs" = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 
+	"slope.beta.cs" = c(1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+	"int.alpha.con" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 
+	"slope.beta.con" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24)
 	)
 ## Let's reorder fitdata to be safe we WANT
 design %>% arrange(Treatment, hours)
@@ -648,13 +663,16 @@ fitdata <- fitdata[c("GSE10718_Biomat_16", "GSE10718_Biomat_17", "GSE10718_Bioma
 					 "GSE10718_Biomat_14", "GSE10718_Biomat_15", "GSE10718_Biomat_1", 
 					 "GSE10718_Biomat_2", "GSE10718_Biomat_3")]
 
+## Let's make sure we've got our rownames as well
+rownames(fitdata) <- data$ProbeID
+
 ## Hopefully this works...
 design.matrix.combined %>% kable("markdown")
 
 # colnames(design.matrix.combined) <- c("cs", "control", "hours", "control.hours")
-contrast.matrix.combined <- makeContrasts(cs.slope.beta-con.slope.beta,
-										  # cs.slope.beta, con.slope.beta, # We'd like to know if these are > 0, but not key
-										  cs.int.alpha-con.int.alpha,  
+contrast.matrix.combined <- makeContrasts("combined" = slope.beta.cs-slope.beta.con, # combined effect
+										  "time" = slope.beta.con, # Time effect alone
+										  "treatment" = int.alpha.cs-int.alpha.con, # treatment effect alone
 										  levels = design.matrix.combined)
 
 # contrast.matrix.combined <- makeContrasts(control.hours-cs-hours+control, levels = design.matrix.combined)
@@ -669,56 +687,40 @@ results.combined <- decideTests(efit.combined)
 vennDiagram(results.combined)
 ```
 
-Let's also contrast our slopes to zero.  This will tell us if time had any effect on either of the treatments.  We will expect to see greater number of differentially expressed (DE) genes in the cigarette smoke group here. 
-```{r}
-contrast.matrix.slope <- makeContrasts(cs.slope.beta, con.slope.beta,  
-										  levels = design.matrix.combined)
+Woohoo! Now I've effectively modeled all 3 biological scenarios.
 
-fit.combined.slope <- lmFit(fitdata, design.matrix.combined)
-fit.combined.slope <- contrasts.fit(fit.combined.slope, contrast.matrix.slope)
-efit.combined.slope <- eBayes(fit.combined.slope)
-tT.combined.slope <- topTable(efit.combined.slope)
-tT.combined.slope %>% kable("markdown")
-results.combined.slope <- decideTests(efit.combined.slope)
-vennDiagram(results.combined.slope)
-```
-
-Fantastic!!
-
-
-Doesn't look too bad, but I'm still struggling to figure out exactly what this is modelling. Let's push ahead and I'll come back to this.
 
 >*For how many probes is treatment a significant factor at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
 
 ```{r}
-tT.combined <- topTable(efit.combined, adjust = "none", number = Inf, p.value = 1e-3)
+tT.combined <- topTable(efit.combined, coef = 1, adjust = "none", number = Inf, p.value = 1e-3)
 # here, we should see that P.Value = adj.P.Val
 head(tT.combined)
 nrow(tT.combined)
 ```
 
-So 1435 significant genes at p < 0.001
+So 573 significant genes at p < 0.001 when looking at combined effect.
 
 ```{r}
-tT.combined.sig.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf, p.value = 0.05)
+tT.combined.sig.fdr <- topTable(efit.combined, coef = 1, adjust = "fdr", number = Inf, p.value = 0.05)
 head(tT.combined.sig.fdr)
 nrow(tT.combined.sig.fdr)
 ```
 
-And 2585 significant genes with FDR correction and p < 0.05.  
+And 664 significant genes with FDR correction and p < 0.05.  
 
 >*Is this number different from what you reported in 3.2? Why? Quantify the proportion of overlapping probes among your hits, when using the unadjusted p-value threshold of 1e-3.*
 
 Here we have just 716 significantly different genes, down from 805 when just considering treatment.  Let's look at the overlap. We'll compare our toptables, `tT.treatment` and `tT.combined`.  
 ```{r}
 tT.treatment %<>% tbl_df()
-tT.combined$ProbeID <- row.names(tT.combined)
+tT.combined$ProbeID <- rownames(tT.combined)
 tT.combined %<>% tbl_df()
 tT.combined$ProbeID %in% tT.treatment$ProbeID %>% # listing the smaller length list first just to be safe
 	sum() # this treats TRUE as 1 and FALSE as 0
 ```
 
-Okay, we've got an overlap of 418 genes, I'd say that's expected.  
+Okay, we've got an overlap of 26 genes, I'd say that's expected.  
 
 >*Plot the distributions of all the p-values for treatment when using both models, i.e., one from the model in Q3 and one from the full model in this question. Compare and comment on the similarity/differences in the shape of the distributions.*
 
@@ -731,7 +733,7 @@ p + geom_histogram(binwidth = 0.01) +
 	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
 	ggtitle("P-Value Distribution for Treatment Model")
 
-tT.combined.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf)
+tT.combined.fdr <- topTable(efit.combined, coef = 1, adjust = "fdr", number = Inf)
 
 p <- ggplot(tT.combined.fdr, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 0.01) + 
@@ -746,7 +748,17 @@ The p-value distributions look very similar when compared directly, but it seems
 >*Explain in English what you are modeling with this interaction term (what does it represent?).*
 >*For how many probes is the interaction effect significant at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
 
+>*Null hypothesis: there’s no significant interaction between time and treatment.*
+
+With this interaction terms, we are modeling both the slope and intercept of both treatment and control groups.  Then, we can model all three scenarios:  
+1. Treatment: Intercept of CS (int.alpha.cs) different than Intercept of Control (int.alpha.con)?  
+2. Time: Is the Slope of Control (slope.beta.con) different from zero?  
+3. Treatment & Time: Is the Slope of CS (slope.beta.cs) different from Slope of Control (slope.beta.con)?  
+
+
 ## 5.3 Plot a few probes where the interaction does and does not matter 
+
+
 
 # Microarray Analysis
 
@@ -765,36 +777,30 @@ gath.yeast <- yeast %>% gather("sample", "intensity", 2:7)
 
 We've got 10,928 probes (rows) and 6 samples in what appears to be two groups (b & c).  The first column is our probe ID column.  
 
-First off, let's plot some pairwise comparisons. 
-```{r}
-ggplot(yeast, aes(x = b1, y = b2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-ggplot(yeast, aes(x = b1, y = b3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-ggplot(yeast, aes(x = b2, y = b3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-
-ggplot(yeast, aes(x = c1, y = c2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-ggplot(yeast, aes(x = c1, y = c3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-ggplot(yeast, aes(x = c2, y = c3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
+First off, let's plot some pairwise comparisons.
+```{r, cache = TRUE}
+yeast %>% select(-probeID) %>% 
+	ggpairs(aes(alpha = 0.4)) + theme(
+		axis.text.x = element_blank(),
+		axis.text.y = element_blank(),
+		axis.ticks = element_blank()
+	)
 ```
 
-Well, so far we can see that b2 & b3 look to be in the same group.  Similarly, c1 and c3 seem to be in the same group. 
-```{r}
-ggplot(yeast, aes(x = b1, y = c1)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-```
+Beautiful! I'm glad I found the `ggpairs()` function, that's made my life a lot easier.  
+We can see easily now, that we've got correlation between two groups:  
+- c1, b1, c3  
+- c2, b2, b3  
 
-So do b1 & c1.  So it would see our first group is b1, c1, c3
-```{r}
-ggplot(yeast, aes(x = b1, y = c3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-```
+Perhaps we could presmue to group these
 
-Looks about right! That would leave b2, b3, and c2 correlated.  
+| Chemostat? | Batch? |
+|------------|--------|
+| c1         | **c2** |
+| **b1**     | b2     |
+| c3         | b3     |
 
-```{r}
-ggplot(yeast, aes(x = b2, y = b3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-ggplot(yeast, aes(x = b2, y = c2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-ggplot(yeast, aes(x = b3, y = c2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
-```
-
-I bet we could've faceted that. 
+Now let's add in our groups.  I tried to create a phenotype data frame and join, but it kept crashing my computer, so I'm just going to use some regex magic to create our treatment group column.  
 ```{r}
 gath.yeast %<>% 
 	mutate(group = gsub("[0-9]$", "", sample))
@@ -806,13 +812,6 @@ gath.yeast
 tail(gath.yeast)
 ```
 
-```{r}
-p <- ggplot(gath.yeast, aes(x = sample))
-p + geom_density(aes(fill = intensity)) + 
-	facet_wrap( ~ group) + ggtitle("Log2 Intensities of Samples")
-```
-
-
 Looks pretty good!
 
 Let's compute the pearson distance between samples. 
@@ -821,7 +820,7 @@ yeast.corr <- yeast %>%
 	select(-probeID) %>% 
 	cor(method = "pearson") %>% 
 	as.data.frame()
-yeast.corr$correlate <- row.names(yeast.corr)
+yeast.corr$correlate <- rownames(yeast.corr)
 heatmapcolors <- brewer.pal(9, "Oranges")
 yeast.corr %<>% gather("sample", "correlation", 1:6)
 ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) + 
@@ -870,7 +869,7 @@ gath.yeast %>%
 Finally, how about PCA? We can use `FactoMineR::PCA` to get a simple plot, or use `stats::prcomp` for an object we can pipe into `ggplot2`.  
 ```{r}
 noProbes.yeast <- yeast
-row.names(noProbes.yeast) <- noProbes.yeast$probeID
+rownames(noProbes.yeast) <- noProbes.yeast$probeID
 noProbes.yeast$probeID <- NULL
 
 fPCA <- FactoMineR::PCA(noProbes.yeast, scale.unit = FALSE)
@@ -910,7 +909,7 @@ g + scale_color_discrete(name = '') +
 	ggtitle("PCA Plot of Yeast Samples")
 ```
 
-Given all of these plots, we can not satisfactorally conclude that samples b1 and c2 have accidentally been swapped. Let's fix that and continue!
+Given all of these plots, we can now satisfactorally conclude that samples b1 and c2 have accidentally been swapped. Let's fix that and continue!
 
 ## 6.2 Microarray DEA (2 points)
 
@@ -918,26 +917,17 @@ Given all of these plots, we can not satisfactorally conclude that samples b1 an
 yeast.fixed <- yeast
 colnames(yeast.fixed)
 colnames(yeast.fixed) <- c("probeID", "c2", "b2", "b3", "c1", "b1", "c3")
-```
-
-Here, I'll use biomaRt to get gene IDs and ensembl gene IDs.  We know from the homework that this experiment is using the Affymetrix Yeast Genome Array 2.0 platform, and we can do a quick check on GEO to confirm.  [GSE37599](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE37599), and [GPL2529](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL2529), Affymetrix Yeast Genome 2.0 Array.  Perfect!
-```{r biomaRt2, cache = TRUE}
-ensembl <- useMart("ensembl") # set up biomaRt to use the ensembl database
-datasets <- listDatasets(ensembl) # store our datasets so we can see which to use
-ensembl <- useDataset("scerevisiae_gene_ensembl", mart = ensembl) # use the human data set!
-filters <- listFilters(ensembl) # find what filters we can use and cross fingers that it's here
-attributes <- listAttributes(ensembl) # ditto with the attributes
-yeast_probe_IDs <- getBM(attributes = c("external_gene_name", "ensembl_gene_id", "affy_yeast_2"), filters = "affy_yeast_2", values = yeast.fixed$probeID, mart = ensembl) # query the probeIDs
-head(yeast_probe_IDs)
-colnames(yeast_probe_IDs)[3] <- "probeID"
-yeast.fixed <- inner_join(yeast.fixed, yeast_probe_IDs, by = "probeID")
-yeast.fixed
+yeast.fixed <- yeast.fixed[
+	c("probeID",
+	  "b1", "b2", "b3", "c1", "c2", "c3")
+] 
 ```
 
 Alrighty, now that we've got our gene IDs set up, let's bring in some qualitative data describing batch vs chemostat.  For this we'll need to gather our data first.  
 ```{r}
+rownames(yeast.fixed) <- yeast.fixed$probeID
 yeast.fg <- yeast.fixed %>% # for yeast, fixed & gathered
-	gather("sample", "intensity", 2:7)
+	gather("sample", "intensity", c(b1, b2, b3, c1, c2, c3))
 ```
 
 And then we can bring in qualitative data.  We can really just create our own data.frame for this.
@@ -952,10 +942,59 @@ yeast.fg
 tail(yeast.fg)
 ```
 
+One last thing before we start with limma, we'll have to create a phenotype data.frame to construct our design matrix. 
 ```{r}
-p <- ggplot(yeast.fg, aes(x = sample))
-p + geom_density(aes(fill = intensity)) + 
-	facet_wrap( ~ group) + ggtitle("Log2 Intensities of Samples")
+yeast.design <- data.frame(
+	row.names = c("b1", "b2", "b3", "c1", "c2", "c3"),
+	"sample" = c("b1", "b2", "b3", "c1", "c2", "c3"), 
+	"group"  = c("batch", "batch", "batch", "chemostat", "chemostat", "chemostat")
+) %>% tbl_df()
+```
+
+
+Alright, now on to our differential expression analysis (DEA) with limma.  
+```{r}
+design.matrix.yeast <- model.matrix(~0+group, yeast.design)
+colnames(design.matrix.yeast) <- c("Batch", "Chemostat")
+contrast.matrix.yeast <- makeContrasts(Batch-Chemostat, levels = design.matrix.yeast)
+## Let's make sure this looks right:
+design.matrix.yeast %>% kable("markdown")
+fit.yeast <- yeast.fixed %>% 
+	select(-probeID) %>% 
+	lmFit(design.matrix.yeast)
+fit.yeast <- contrasts.fit(fit.yeast, contrast.matrix.yeast)
+efit.yeast <- eBayes(fit.yeast)
+tT.yeast <- topTable(efit.yeast, adjust.method="BH", number = Inf) # I know BH is default, but it's still good to specify
+tT.yeast %>% head() %>% kable("markdown")
+results.yeast <- decideTests(efit.yeast)
+vennDiagram(results.yeast)
+```
+
+Great! Let's check out our p-value distribution before we continue though
+```{r}
+p <- ggplot(tT.yeast, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 0.05) + 
+	xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution of Significant \n Genes with BH Correction")
+```
+
+That looks pretty drastic, but I'm not sure it's wrong. Let's pull out our answers
+```{r}
+(tT.yeast %<>% tbl_df())
+```
+
+Here, I'll use biomaRt to get gene IDs and ensembl gene IDs.  We know from the homework that this experiment is using the Affymetrix Yeast Genome Array 2.0 platform, and we can do a quick check on GEO to confirm.  [GSE37599](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE37599), and [GPL2529](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL2529), Affymetrix Yeast Genome 2.0 Array.  Perfect!
+```{r biomaRt2, cache = TRUE}
+ensembl <- useMart("ensembl") # set up biomaRt to use the ensembl database
+datasets <- listDatasets(ensembl) # store our datasets so we can see which to use
+ensembl <- useDataset("scerevisiae_gene_ensembl", mart = ensembl) # use the human data set!
+filters <- listFilters(ensembl) # find what filters we can use and cross fingers that it's here
+attributes <- listAttributes(ensembl) # ditto with the attributes
+yeast_probe_IDs <- getBM(attributes = c("external_gene_name", "ensembl_gene_id", "affy_yeast_2"), filters = "affy_yeast_2", values = yeast.fixed$probeID, mart = ensembl) # query the probeIDs
+head(yeast_probe_IDs)
+colnames(yeast_probe_IDs)[3] <- "probeID"
+yeast.fixed <- left_join(yeast.fixed, yeast_probe_IDs, by = "probeID")
+yeast.fixed
 ```
 
 
