@@ -526,7 +526,7 @@ topHits <- left_join(topHits, affy_probe_IDs_hgnc, by = "ProbeID")
 glimpse(topHits)
 topHits$qualitative %<>% as.factor()
 topHits %<>% 
-	arrange(Treatment)
+	arrange(Treatment, hours)
 topHits$treatment.factor <- 1:nrow(topHits)
 topHits %<>% 
 	mutate(qualitative = reorder(qualitative, treatment.factor, max))
@@ -620,15 +620,24 @@ Let's go straight to question 5 and come back to this one.
 design %<>% 
 	arrange(hours)
 colnames(data)
-# design.matrix.combined <- model.matrix(~0 + (hours * Treatment), design) ## this isn't working!
+# design.matrix.combined <- model.matrix(~0 + hours * Treatment, design) ## this isn't working!
 design.matrix.combined <- data.frame(
+	row.names = c("GSE10718_Biomat_16", "GSE10718_Biomat_17", "GSE10718_Biomat_19",
+					 "GSE10718_Biomat_20", "GSE10718_Biomat_21", "GSE10718_Biomat_22",
+					 "GSE10718_Biomat_23", "GSE10718_Biomat_24", "GSE10718_Biomat_4", 
+					 "GSE10718_Biomat_5", "GSE10718_Biomat_6", "GSE10718_Biomat_10", 
+					 "GSE10718_Biomat_11", "GSE10718_Biomat_12", "GSE10718_Biomat_7", 
+					 "GSE10718_Biomat_8", "GSE10718_Biomat_9", "GSE10718_Biomat_13", 
+					 "GSE10718_Biomat_14", "GSE10718_Biomat_15", "GSE10718_Biomat_1", 
+					 "GSE10718_Biomat_2", "GSE10718_Biomat_3"),
 	"cs.int.alpha" = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 
 	"cs.slope.beta" = c(1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 	"con.int.alpha" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 
 	"con.slope.beta" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24)
 	)
 ## Let's reorder fitdata to be safe we WANT
-design %>% arrange(Treatment)
+design %>% arrange(Treatment, hours)
+
 ## Looks good
 fitdata <- fitdata[c("GSE10718_Biomat_16", "GSE10718_Biomat_17", "GSE10718_Biomat_19",
 					 "GSE10718_Biomat_20", "GSE10718_Biomat_21", "GSE10718_Biomat_22",
@@ -638,23 +647,44 @@ fitdata <- fitdata[c("GSE10718_Biomat_16", "GSE10718_Biomat_17", "GSE10718_Bioma
 					 "GSE10718_Biomat_8", "GSE10718_Biomat_9", "GSE10718_Biomat_13", 
 					 "GSE10718_Biomat_14", "GSE10718_Biomat_15", "GSE10718_Biomat_1", 
 					 "GSE10718_Biomat_2", "GSE10718_Biomat_3")]
+
 ## Hopefully this works...
 design.matrix.combined %>% kable("markdown")
+
 # colnames(design.matrix.combined) <- c("cs", "control", "hours", "control.hours")
 contrast.matrix.combined <- makeContrasts(cs.slope.beta-con.slope.beta,
-										  # cs.slope.beta, con.slope.beta, 
+										  # cs.slope.beta, con.slope.beta, # We'd like to know if these are > 0, but not key
 										  cs.int.alpha-con.int.alpha,  
 										  levels = design.matrix.combined)
+
 # contrast.matrix.combined <- makeContrasts(control.hours-cs-hours+control, levels = design.matrix.combined)
+
 ## Let's make sure this looks right:
 fit.combined <- lmFit(fitdata, design.matrix.combined)
 fit.combined <- contrasts.fit(fit.combined, contrast.matrix.combined)
 efit.combined <- eBayes(fit.combined)
 tT.combined <- topTable(efit.combined)
-tT.combined %>% kable("markdown")
+tT.combined %>% head() %>% kable("markdown")
 results.combined <- decideTests(efit.combined)
 vennDiagram(results.combined)
 ```
+
+Let's also contrast our slopes to zero.  This will tell us if time had any effect on either of the treatments.  We will expect to see greater number of differentially expressed (DE) genes in the cigarette smoke group here. 
+```{r}
+contrast.matrix.slope <- makeContrasts(cs.slope.beta, con.slope.beta,  
+										  levels = design.matrix.combined)
+
+fit.combined.slope <- lmFit(fitdata, design.matrix.combined)
+fit.combined.slope <- contrasts.fit(fit.combined.slope, contrast.matrix.slope)
+efit.combined.slope <- eBayes(fit.combined.slope)
+tT.combined.slope <- topTable(efit.combined.slope)
+tT.combined.slope %>% kable("markdown")
+results.combined.slope <- decideTests(efit.combined.slope)
+vennDiagram(results.combined.slope)
+```
+
+Fantastic!!
+
 
 Doesn't look too bad, but I'm still struggling to figure out exactly what this is modelling. Let's push ahead and I'll come back to this.
 
@@ -667,7 +697,7 @@ head(tT.combined)
 nrow(tT.combined)
 ```
 
-So 716 significant genes at p < 0.001
+So 1435 significant genes at p < 0.001
 
 ```{r}
 tT.combined.sig.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf, p.value = 0.05)
@@ -675,7 +705,7 @@ head(tT.combined.sig.fdr)
 nrow(tT.combined.sig.fdr)
 ```
 
-And 1006 significant genes with FDR correction and p < 0.05.  
+And 2585 significant genes with FDR correction and p < 0.05.  
 
 >*Is this number different from what you reported in 3.2? Why? Quantify the proportion of overlapping probes among your hits, when using the unadjusted p-value threshold of 1e-3.*
 

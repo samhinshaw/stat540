@@ -1116,7 +1116,7 @@ glimpse(topHits)
 ```r
 topHits$qualitative %<>% as.factor()
 topHits %<>% 
-	arrange(Treatment)
+	arrange(Treatment, hours)
 topHits$treatment.factor <- 1:nrow(topHits)
 topHits %<>% 
 	mutate(qualitative = reorder(qualitative, treatment.factor, max))
@@ -1375,15 +1375,23 @@ colnames(data)
 ```
 
 ```r
-# design.matrix.combined <- model.matrix(~0 + (hours * Treatment), design) ## this isn't working!
+# design.matrix.combined <- model.matrix(~0 + hours * Treatment, design) ## this isn't working!
 design.matrix.combined <- data.frame(
+	row.names = c("GSE10718_Biomat_16", "GSE10718_Biomat_17", "GSE10718_Biomat_19",
+					 "GSE10718_Biomat_20", "GSE10718_Biomat_21", "GSE10718_Biomat_22",
+					 "GSE10718_Biomat_23", "GSE10718_Biomat_24", "GSE10718_Biomat_4", 
+					 "GSE10718_Biomat_5", "GSE10718_Biomat_6", "GSE10718_Biomat_10", 
+					 "GSE10718_Biomat_11", "GSE10718_Biomat_12", "GSE10718_Biomat_7", 
+					 "GSE10718_Biomat_8", "GSE10718_Biomat_9", "GSE10718_Biomat_13", 
+					 "GSE10718_Biomat_14", "GSE10718_Biomat_15", "GSE10718_Biomat_1", 
+					 "GSE10718_Biomat_2", "GSE10718_Biomat_3"),
 	"cs.int.alpha" = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), 
 	"cs.slope.beta" = c(1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 	"con.int.alpha" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 
 	"con.slope.beta" = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 4, 4, 4, 24, 24, 24)
 	)
 ## Let's reorder fitdata to be safe we WANT
-design %>% arrange(Treatment)
+design %>% arrange(Treatment, hours)
 ```
 
 ```
@@ -1415,51 +1423,54 @@ fitdata <- fitdata[c("GSE10718_Biomat_16", "GSE10718_Biomat_17", "GSE10718_Bioma
 					 "GSE10718_Biomat_8", "GSE10718_Biomat_9", "GSE10718_Biomat_13", 
 					 "GSE10718_Biomat_14", "GSE10718_Biomat_15", "GSE10718_Biomat_1", 
 					 "GSE10718_Biomat_2", "GSE10718_Biomat_3")]
+
 ## Hopefully this works...
 design.matrix.combined %>% kable("markdown")
 ```
 
 
 
-| cs.int.alpha| cs.slope.beta| con.int.alpha| con.slope.beta|
-|------------:|-------------:|-------------:|--------------:|
-|            1|             1|             0|              0|
-|            1|             1|             0|              0|
-|            1|             2|             0|              0|
-|            1|             2|             0|              0|
-|            1|             2|             0|              0|
-|            1|             4|             0|              0|
-|            1|             4|             0|              0|
-|            1|             4|             0|              0|
-|            1|            24|             0|              0|
-|            1|            24|             0|              0|
-|            1|            24|             0|              0|
-|            0|             0|             1|              1|
-|            0|             0|             1|              1|
-|            0|             0|             1|              1|
-|            0|             0|             1|              2|
-|            0|             0|             1|              2|
-|            0|             0|             1|              2|
-|            0|             0|             1|              4|
-|            0|             0|             1|              4|
-|            0|             0|             1|              4|
-|            0|             0|             1|             24|
-|            0|             0|             1|             24|
-|            0|             0|             1|             24|
+|                   | cs.int.alpha| cs.slope.beta| con.int.alpha| con.slope.beta|
+|:------------------|------------:|-------------:|-------------:|--------------:|
+|GSE10718_Biomat_16 |            1|             1|             0|              0|
+|GSE10718_Biomat_17 |            1|             1|             0|              0|
+|GSE10718_Biomat_19 |            1|             2|             0|              0|
+|GSE10718_Biomat_20 |            1|             2|             0|              0|
+|GSE10718_Biomat_21 |            1|             2|             0|              0|
+|GSE10718_Biomat_22 |            1|             4|             0|              0|
+|GSE10718_Biomat_23 |            1|             4|             0|              0|
+|GSE10718_Biomat_24 |            1|             4|             0|              0|
+|GSE10718_Biomat_4  |            1|            24|             0|              0|
+|GSE10718_Biomat_5  |            1|            24|             0|              0|
+|GSE10718_Biomat_6  |            1|            24|             0|              0|
+|GSE10718_Biomat_10 |            0|             0|             1|              1|
+|GSE10718_Biomat_11 |            0|             0|             1|              1|
+|GSE10718_Biomat_12 |            0|             0|             1|              1|
+|GSE10718_Biomat_7  |            0|             0|             1|              2|
+|GSE10718_Biomat_8  |            0|             0|             1|              2|
+|GSE10718_Biomat_9  |            0|             0|             1|              2|
+|GSE10718_Biomat_13 |            0|             0|             1|              4|
+|GSE10718_Biomat_14 |            0|             0|             1|              4|
+|GSE10718_Biomat_15 |            0|             0|             1|              4|
+|GSE10718_Biomat_1  |            0|             0|             1|             24|
+|GSE10718_Biomat_2  |            0|             0|             1|             24|
+|GSE10718_Biomat_3  |            0|             0|             1|             24|
 
 ```r
 # colnames(design.matrix.combined) <- c("cs", "control", "hours", "control.hours")
 contrast.matrix.combined <- makeContrasts(cs.slope.beta-con.slope.beta,
-										  # cs.slope.beta, con.slope.beta, 
+										  # cs.slope.beta, con.slope.beta, # We'd like to know if these are > 0, but not key
 										  cs.int.alpha-con.int.alpha,  
 										  levels = design.matrix.combined)
+
 # contrast.matrix.combined <- makeContrasts(control.hours-cs-hours+control, levels = design.matrix.combined)
+
 ## Let's make sure this looks right:
 fit.combined <- lmFit(fitdata, design.matrix.combined)
 fit.combined <- contrasts.fit(fit.combined, contrast.matrix.combined)
 efit.combined <- eBayes(fit.combined)
 tT.combined <- topTable(efit.combined)
-tT.combined %>% kable("markdown")
+tT.combined %>% head() %>% kable("markdown")
 ```
 
 
@@ -1472,10 +1483,6 @@ tT.combined %>% kable("markdown")
 |9409  |                     -0.0592886|                   -0.0926291| 11.218826|  76.57433|       0|   1.5e-06|
 |4984  |                     -0.0574848|                    0.1757714| 10.092374|  75.50078|       0|   1.5e-06|
 |11888 |                     -0.0899071|                   -0.0593157|  9.748163|  73.60875|       0|   1.5e-06|
-|4121  |                     -0.0886490|                    0.0805433| 10.820741|  73.32356|       0|   1.5e-06|
-|4470  |                      0.0631151|                   -0.1662176|  9.928981|  71.41172|       0|   1.6e-06|
-|14305 |                     -0.0623595|                    0.0168690| 11.251135|  69.55375|       0|   1.8e-06|
-|12656 |                     -0.0641124|                    0.0635527| 12.296795|  68.71514|       0|   1.8e-06|
 
 ```r
 results.combined <- decideTests(efit.combined)
@@ -1483,6 +1490,44 @@ vennDiagram(results.combined)
 ```
 
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-17-1.png)
+
+Let's also contrast our slopes to zero.  This will tell us if time had any effect on either of the treatments.  We will expect to see greater number of differentially expressed (DE) genes in the cigarette smoke group here. 
+
+```r
+contrast.matrix.slope <- makeContrasts(cs.slope.beta, con.slope.beta,  
+										  levels = design.matrix.combined)
+
+fit.combined.slope <- lmFit(fitdata, design.matrix.combined)
+fit.combined.slope <- contrasts.fit(fit.combined.slope, contrast.matrix.slope)
+efit.combined.slope <- eBayes(fit.combined.slope)
+tT.combined.slope <- topTable(efit.combined.slope)
+tT.combined.slope %>% kable("markdown")
+```
+
+
+
+|      | cs.slope.beta| con.slope.beta|  AveExpr|         F| P.Value| adj.P.Val|
+|:-----|-------------:|--------------:|--------:|---------:|-------:|---------:|
+|7458  |     0.0941010|      0.0201602| 12.36283| 169.65044|       0|     0e+00|
+|4984  |    -0.0681277|     -0.0106430| 10.09237| 166.63312|       0|     0e+00|
+|3518  |    -0.0893481|     -0.0264743| 11.80425| 145.97913|       0|     0e+00|
+|3744  |     0.0803847|     -0.0336863| 12.71756| 140.14694|       0|     0e+00|
+|5730  |    -0.0679500|     -0.0200716| 10.96036| 119.68427|       0|     0e+00|
+|3602  |    -0.0802192|     -0.0192275| 11.74982| 110.12311|       0|     0e+00|
+|14305 |    -0.0674208|     -0.0050613| 11.25113|  95.86420|       0|     1e-07|
+|2800  |    -0.0663600|     -0.0085517| 11.06923|  94.47768|       0|     1e-07|
+|9409  |    -0.0661714|     -0.0068828| 11.21883|  93.43296|       0|     1e-07|
+|3427  |    -0.0682500|     -0.0192394| 12.15344|  92.50125|       0|     1e-07|
+
+```r
+results.combined.slope <- decideTests(efit.combined.slope)
+vennDiagram(results.combined.slope)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-18-1.png)
+
+Fantastic!!
+
 
 Doesn't look too bad, but I'm still struggling to figure out exactly what this is modelling. Let's push ahead and I'll come back to this.
 
@@ -1520,7 +1565,7 @@ nrow(tT.combined)
 ## [1] 1435
 ```
 
-So 716 significant genes at p < 0.001
+So 1435 significant genes at p < 0.001
 
 
 ```r
@@ -1553,7 +1598,7 @@ nrow(tT.combined.sig.fdr)
 ## [1] 2585
 ```
 
-And 1006 significant genes with FDR correction and p < 0.05.  
+And 2585 significant genes with FDR correction and p < 0.05.  
 
 >*Is this number different from what you reported in 3.2? Why? Quantify the proportion of overlapping probes among your hits, when using the unadjusted p-value threshold of 1e-3.*
 
@@ -1586,7 +1631,7 @@ p + geom_histogram(binwidth = 0.01) +
 	ggtitle("P-Value Distribution for Treatment Model")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-21-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-22-1.png)
 
 ```r
 tT.combined.fdr <- topTable(efit.combined, adjust = "fdr", number = Inf)
@@ -1597,7 +1642,7 @@ p + geom_histogram(binwidth = 0.01) +
 	ggtitle("P-Value Distribution for Combined Model")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-21-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-22-2.png)
 
 The p-value distributions look very similar when compared directly, but it seems as though we may have fewer significant hits when using our combined model.  That doesn't seem right, I would've expected to see a skew towards significance in the combined model, since we're more accurately separating our groups. Let's come back to this later.  
 
@@ -1668,37 +1713,37 @@ First off, let's plot some pairwise comparisons.
 ggplot(yeast, aes(x = b1, y = b2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-1.png)
 
 ```r
 ggplot(yeast, aes(x = b1, y = b3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-2.png)
 
 ```r
 ggplot(yeast, aes(x = b2, y = b3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-3.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-3.png)
 
 ```r
 ggplot(yeast, aes(x = c1, y = c2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-4.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-4.png)
 
 ```r
 ggplot(yeast, aes(x = c1, y = c3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-5.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-5.png)
 
 ```r
 ggplot(yeast, aes(x = c2, y = c3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-6.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-6.png)
 
 Well, so far we can see that b2 & b3 look to be in the same group.  Similarly, c1 and c3 seem to be in the same group. 
 
@@ -1706,7 +1751,7 @@ Well, so far we can see that b2 & b3 look to be in the same group.  Similarly, c
 ggplot(yeast, aes(x = b1, y = c1)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-24-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-25-1.png)
 
 So do b1 & c1.  So it would see our first group is b1, c1, c3
 
@@ -1714,7 +1759,7 @@ So do b1 & c1.  So it would see our first group is b1, c1, c3
 ggplot(yeast, aes(x = b1, y = c3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-25-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-26-1.png)
 
 Looks about right! That would leave b2, b3, and c2 correlated.  
 
@@ -1723,19 +1768,19 @@ Looks about right! That would leave b2, b3, and c2 correlated.
 ggplot(yeast, aes(x = b2, y = b3)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-26-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-1.png)
 
 ```r
 ggplot(yeast, aes(x = b2, y = c2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-26-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-2.png)
 
 ```r
 ggplot(yeast, aes(x = b3, y = c2)) + geom_point() + ggtitle("Pairwise sample-sample correlation")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-26-3.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-3.png)
 
 I bet we could've faceted that. 
 
@@ -1791,7 +1836,7 @@ p + geom_density(aes(fill = intensity)) +
 	facet_wrap( ~ group) + ggtitle("Log2 Intensities of Samples")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-28-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-29-1.png)
 
 
 Looks pretty good!
@@ -1811,7 +1856,7 @@ ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) +
 	scale_fill_gradientn(colors = heatmapcolors)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-29-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-30-1.png)
 
 Okay, now let's rearrange based on what we decided from our pairwise sample-sample scatterplots and what looks like some obvious clustering in our first heatmap.
 
@@ -1825,7 +1870,7 @@ ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) +
 	scale_fill_gradientn(colors = heatmapcolors)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-30-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-31-1.png)
 
 This makes it seem rather apparent that b1, c1, and c3 are part of one group, and c2, b3, and b2 are part of another group.  Either that or there are some serious flaws with these microarrays.  
 
@@ -1841,7 +1886,7 @@ gath.yeast %>%
 	ylab("probeID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-31-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-32-1.png)
 
 And now with our samples sorted into what we believe to be the true groups.  
 
@@ -1858,7 +1903,7 @@ gath.yeast %>%
 	ylab("probeID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-32-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-1.png)
 
 Finally, how about PCA? We can use `FactoMineR::PCA` to get a simple plot, or use `stats::prcomp` for an object we can pipe into `ggplot2`.  
 
@@ -1870,7 +1915,7 @@ noProbes.yeast$probeID <- NULL
 fPCA <- FactoMineR::PCA(noProbes.yeast, scale.unit = FALSE)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-1.png)![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-1.png)![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-2.png)
 
 ```r
 sPCA <- stats::prcomp(noProbes.yeast, scale. = FALSE)
@@ -1900,7 +1945,7 @@ ggplot(PCA.rotation, aes(x = PC1, y = PC2, label = rownames(PCA.rotation))) +
 	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-35-1.png)
 
 Note that we get a different looking distribution if we scale our values. Regardless, the clustering is obvious, and our principal components are the same.  
 
@@ -1928,7 +1973,7 @@ ggplot(PCA.rotation.scaled, aes(x = PC1, y = PC2, label = rownames(PCA.rotation)
 	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-35-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-36-1.png)
 
 Finally, if we also wanted to plot our observations, we could use the `ggbiplot` package.  
 
@@ -1941,7 +1986,7 @@ g + scale_color_discrete(name = '') +
 	ggtitle("PCA Plot of Yeast Samples")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-36-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-37-1.png)
 
 Given all of these plots, we can not satisfactorally conclude that samples b1 and c2 have accidentally been swapped. Let's fix that and continue!
 
@@ -2071,8 +2116,8 @@ p + geom_density(aes(fill = intensity)) +
 	facet_wrap( ~ group) + ggtitle("Log2 Intensities of Samples")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-40-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-41-1.png)
 
 
 ********
-This page was last updated on  Sunday, March 13, 2016 at 10:23PM
+This page was last updated on  Monday, March 14, 2016 at 09:35AM
