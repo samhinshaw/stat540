@@ -39,6 +39,7 @@ suppressPackageStartupMessages({
 	library(RColorBrewer)
 	library(viridis)
 	library(VennDiagram)
+	library(qvalue) #biocLite("qvalue")
 	library(dplyr)
 	library(cowplot)
 	library(GGally)
@@ -225,19 +226,19 @@ Let's get biomaRt out of the way so we can move on.
 
 
 ```{r}
-affy.gene.sybmols <- mget(data$ProbeID, hgu133plus2SYMBOL)
-# affy.gene.ensembl <- mget(data$ProbeID, hgu133plus2ENSEMBL)
-length(unique(affy.gene.sybmols))
-length(affy.gene.sybmols)
-
-probe.symbols <- data.frame(
-	"ProbeID" = names(affy.gene.sybmols),
-	"geneSymbol" = unlist(affy.gene.sybmols), 
-	stringsAsFactors = FALSE
-) %>% tbl_df()
-
-probe.symbols %<>% 
-	filter(!is.na(geneSymbol))
+# affy.gene.sybmols <- mget(data$ProbeID, hgu133plus2SYMBOL)
+# # affy.gene.ensembl <- mget(data$ProbeID, hgu133plus2ENSEMBL)
+# length(unique(affy.gene.sybmols))
+# length(affy.gene.sybmols)
+# 
+# probe.symbols <- data.frame(
+# 	"ProbeID" = names(affy.gene.sybmols),
+# 	"geneSymbol" = unlist(affy.gene.sybmols), 
+# 	stringsAsFactors = FALSE
+# ) %>% tbl_df()
+# 
+# probe.symbols %<>% 
+# 	filter(!is.na(geneSymbol))
 
 # 
 # probe.geneID <- data.frame(
@@ -251,7 +252,7 @@ probe.symbols %<>%
 # 
 # probes.symbols.IDs <- inner_join(probe.symbols, probe.geneID, by = "probeID")
 
-data <- right_join(data, probe.symbols, by = "ProbeID")
+# data <- right_join(data, probe.symbols, by = "ProbeID")
 # data.merged <- inner_join(data.merged, probe.geneID, by = "ProbeID")
 
 ```
@@ -366,7 +367,7 @@ Moving on, let's start looking at our data quality, not just visualizing it.
 
 ```{r}
 datacor <- data %>% 
-	dplyr::select(-geneSymbol, -ProbeID) %>% 
+	dplyr::select(-ProbeID) %>% 
 	cor()
 melted_corr <- melt(datacor) %>% tbl_df()
 head(melted_corr)
@@ -480,13 +481,15 @@ outliers %>%
 
 At last, something meaningful!! This sample correlates MOST those samples within its own group, but also highly with the 1hr cigarette smoke group.  
 
+Quantitatively, it would help to look at mean standard deviation.  
+
 # 3 Differential Expression with Respect to Treatment
 
 ## 3.1 Linear Model
 ```{r}
 rownames(data) <- data$ProbeID
 fitdata <- data %>% 
-	dplyr::select(-ProbeID, -geneSymbol)
+	dplyr::select(-ProbeID)
 ```
 
 ```{r}
@@ -536,7 +539,10 @@ tT.treatment <- topTable(efit, adjust = "none", number = Inf, p.value = 1e-3)
 head(tT.treatment)
 nrow(tT.treatment)
 tT.treatment$ProbeID <- rownames(tT.treatment)
-tT.treatment.sig.fdr <- topTable(efit, adjust = "fdr", number = Inf, p.value = 0.05, sort.by = "p")
+tT.treatment.sig.fdr <- topTable(efit, adjust = "fdr", number = Inf, 
+								 p.value = 0.05, sort.by = "p")
+## What is my FDR?
+head(tT.treatment.sig.fdr$adj.P.Val, n = 50) %>% sum()
 tT.treatment.sig.fdr$ProbeID <- rownames(tT.treatment.sig.fdr)
 nrow(tT.treatment.sig.fdr)
 head(tT.treatment.sig.fdr)
@@ -583,7 +589,7 @@ topHits$treatment.factor <- 1:nrow(topHits)
 topHits %<>% 
 	mutate(qualitative = reorder(qualitative, treatment.factor, max))
 topHits %<>% 
-	mutate(hgnc_p.value = paste0(geneSymbol, "(", 
+	mutate(hgnc_p.value = paste0(ProbeID, "(", 
 								 format(round(adj.P.Val, 4), scientific = TRUE), 
 								 ")"))
 topHits %<>% 
