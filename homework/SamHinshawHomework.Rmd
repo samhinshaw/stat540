@@ -22,6 +22,7 @@ suppressPackageStartupMessages({
 	library(edgeR) # biocLite("edgeR")
 	library(DESeq2) # biocLite("DESeq2")
 	library(biomaRt)
+	library(yeast2.db)
 	library(magrittr)
 	library(devtools)
 	# library(broom)
@@ -102,7 +103,7 @@ Gene expression patterns were assessed in normal human bronchial epithelial (NHB
 
 ### Import Data
 ```{r read data.txt}
-data <- read_delim("data.txt", delim = "\t")
+data <- readr::read_delim("data.txt", delim = "\t")
 ```
 
 Huh, thanks to `readr`, we're getting an error. Something is wrong with our column count. Let's head to the next step and figure out how to handle this error.  
@@ -115,7 +116,7 @@ glimpse(data)
 
 It looks like we may have an error with our header, as we've got probe IDs labeled as a sample. Could this be an artifact of the compression? Let's try something else real quick. Also, now we know what dataset we're using! GSE10718.
 ```{r read data.txt.gz}
-data_method2 <- gzfile("data.txt.gz") %>% read_delim(delim = "\t")
+data_method2 <- gzfile("data.txt.gz") %>% readr::read_delim(delim = "\t")
 ```
 
 Nope, looks like it's just a problem with the source file. 
@@ -127,7 +128,7 @@ rm(data_method2)
 
 Well, since we're not supposed to edit our souce file, I've copied the file do `data_fixed.txt` and appended `"probeIDs	"` to the beginning of the first line with `sed`.  Now we should be ready to rock!
 ```{r read data_fixed.txt}
-data <- read_delim("data_fixed.txt", delim = "\t")
+data <- readr::read_delim("data_fixed.txt", delim = "\t")
 fitdata <- data
 ```
 
@@ -143,7 +144,7 @@ design <- read_delim("design.txt", delim = "\t")
 
 Ugh, same problem again? C'mon guys. Back to `sed`. 
 ```{r import design fixed}
-design <- read_delim("design_fixed.txt", delim = "\t")
+design <- readr::read_delim("design_fixed.txt", delim = "\t")
 glimpse(design)
 ```
 
@@ -768,7 +769,7 @@ See Makefile again
 
 ## 6.1 Data loading and QC
 ```{r}
-yeast <- read_delim("yeast.tsv", delim = "\t")
+yeast <- readr::read_delim("yeast.tsv", delim = "\t")
 glimpse(yeast)
 yeast
 colnames(yeast)[1] <- "probeID"
@@ -983,6 +984,8 @@ That looks pretty drastic, but I'm not sure it's wrong. Let's pull out our answe
 (tT.yeast %<>% tbl_df())
 ```
 
+## 6.3 Microarray DEA continue
+
 Here, I'll use biomaRt to get gene IDs and ensembl gene IDs.  We know from the homework that this experiment is using the Affymetrix Yeast Genome Array 2.0 platform, and we can do a quick check on GEO to confirm.  [GSE37599](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE37599), and [GPL2529](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL2529), Affymetrix Yeast Genome 2.0 Array.  Perfect!
 ```{r biomaRt2, cache = TRUE}
 ensembl <- useMart("ensembl") # set up biomaRt to use the ensembl database
@@ -993,10 +996,176 @@ attributes <- listAttributes(ensembl) # ditto with the attributes
 yeast_probe_IDs <- getBM(attributes = c("external_gene_name", "ensembl_gene_id", "affy_yeast_2"), filters = "affy_yeast_2", values = yeast.fixed$probeID, mart = ensembl) # query the probeIDs
 head(yeast_probe_IDs)
 colnames(yeast_probe_IDs)[3] <- "probeID"
-yeast.fixed <- left_join(yeast.fixed, yeast_probe_IDs, by = "probeID")
-yeast.fixed
+nrow(yeast_probe_IDs)
+nrow(yeast.fixed)
+yeast.fixed.genes.all <- left_join(yeast.fixed, yeast_probe_IDs, by = "probeID")
+nrow(yeast.fixed.genes.all)
+yeast.fixed.genes <- right_join(yeast.fixed, yeast_probe_IDs, by = "probeID") # inner_join() also works here
+nrow(yeast.fixed.genes) ## Good, 6259 hits is a lot. Let's check to make sure we don't have any NAs in our gene IDs
+sum(is.na(yeast.fixed.genes$external_gene_name))
+## Good none, but if we look at the data, particularly head(n = 10), we can actually see a missing value, it's just not encoded as "NA". I HATE IMPROPER NA ENCODING
+## the workaround...
+yeast.fixed.genes %>% 
+	filter(external_gene_name == "") %>% 
+	nrow()
+## Ouch, seriously? What about the ensembl gene IDs?
+yeast.fixed.genes %>% 
+	filter(ensembl_gene_id == "") %>% 
+	nrow()
+## Okay, that's much better. Before I continue though, I must rectify this NA encoding...
+yeast.fixed.genes$external_gene_name %<>% 
+	gsub("^$", NA, x = .)
+
+## Check our work...
+yeast.fixed.genes %>% 
+	filter(external_gene_name == "") %>% 
+	nrow()
+sum(is.na(yeast.fixed.genes$external_gene_name))
+## Much better!
 ```
 
+Briefly, let's compare biomaRt's ability to match probes with that recommended by the assignment. I believe we should get the same number of hits.
+```{r}
+# source("http://bioconductor.org/biocLite.R")    # Installing biocLite package
+# biocLite()                                      # Load the package 
+# biocLite("yeast2.db")                           # Download the package using biocLite
+# library("yeast2.db")                            # Load the yeast2.db package 
+mget("1772391_at", yeast2ORF)                   # See what gene is that probe for 
+gene.ids <- mget(yeast.fixed$probeID, yeast2ORF) # this will generated a named list. Let's make it into a data.frame
+gene.ids.df <- data.frame(
+	"probeID" = names(gene.ids),
+	"geneID" = unlist(gene.ids), 
+	stringsAsFactors = FALSE
+)
+## This is perfect, we'll see where we've got NAs
+## Number of Hits:
+gene.ids.df %>% 
+	filter(!is.na(geneID)) %>% 
+	nrow()
+
+## Number of whiffs:
+gene.ids.df %>% 
+	filter(is.na(geneID)) %>% 
+	nrow()
+
+## Good, well at least we've got more hits than whiffs, but I got more hits with biomaRt.  Let's save our hits. 
+gene.id.hits <- gene.ids.df %>% 
+	filter(!is.na(geneID)) %>% 
+	tbl_df()
+```
+
+Let's look at the differential expression for batch vs chemostat. 
+
+# 7 RNA-seq analysis
+
+## 7.1 Load RNA Count Data and Sanity Check
+
+Row names are from Satan!! They are utterly ethereal and can be lost at moment's notice. Fixed with `sed` for the sake of automation.
+```{r}
+yeast.seq <- readr::read_delim("yeast_counts_fixed.tsv", delim = "\t")
+yeast.seq
+```
+
+Alright, we've got 6542 genes listed with 6 samples, as before.  The difference between this and our microarray is that here we don't have probes, but actual genes, as identified by stampy aligner and subsequent transcript quantification.  Therefore, you can see we've already got a number of genes similar to our genes as identified by our probe ID to gene ID conversion. A lot of the probes on a microarray are bright or dark controls, and depending on the array (though not the affy array that was used), nonspecific binding probes, and various QC probes used in proprietary "black box" normalization algorithms.  
+
+Anyways, let's continue by checking for the sample ID swap.
+```{r}
+tilegradient.short <- tilegradient[1:5]
+yeast.seq.cor <- yeast.seq %>% 
+	dplyr::select(-gene) %>% 
+	cor()
+yeast.seq.cor %<>% 
+	
+	reshape2::melt(value.name = "correlation")
+ggplot(yeast.seq.cor, aes(x = Var1, y = Var2, fill = correlation)) + 
+	geom_tile() +
+	scale_fill_gradientn(colors = tilegradient.short)
+```
+
+## 7.2 DEA of deep sequencing data
+
+Looks great! No sample ID swap here.  Let's start with edgeR.  Perhaps we should try using the DGElist object. 
+```{r}
+yeast.seq.dg <- DGEList(counts = yeast.seq[2:7], genes = yeast.seq[1], group = yeast.design$group)
+yeast.seq.dg <- calcNormFactors(yeast.seq.dg)
+yeast.seq.dg
+# yeast.genes <- yeast_probe_IDs %>% dplyr::select(-probeID)
+# colnames(yeast.genes) <- c("gene", "ensembl_gene_id")
+# yeast.seq.dg$genes <- inner_join(yeast.seq.dg$genes, yeast.genes, by = "gene")
+# yeast.seq.dg$genes <- inner_join(yeast.seq.dg$genes, yeast_probe_IDs)
+```
+
+Okay, looks good.  
+
+Fortunately we've already got our design matrix!
+```{r}
+DM.yeast.seq <- model.matrix(~group, yeast.design)
+colnames(DM.yeast.seq) <- c("(Intercept)", "chemostat")
+rownames(DM.yeast.seq) <- colnames(yeast.seq)[2:7]
+DM.yeast.seq
+```
+
+Now onto dispersion estimation
+```{r}
+yeast.seq.dg <- estimateGLMCommonDisp(yeast.seq.dg, DM.yeast.seq)
+yeast.seq.dg <- estimateGLMTrendedDisp(yeast.seq.dg, DM.yeast.seq)
+yeast.seq.dg <- estimateGLMTagwiseDisp(yeast.seq.dg, DM.yeast.seq)
+
+estimateSizeFactorsForMatrix(yeast.seq.dg$counts)
+plotBCV(yeast.seq.dg)
+```
+
+```{r}
+yeast.seq.fit <- glmFit(yeast.seq.dg, DM.yeast.seq)
+yeast.seq.lrt <- glmLRT(yeast.seq.fit)
+tT.yeast.seq <- topTags(yeast.seq.lrt, adjust.method = "fdr", p.value = 1e-5, n = Inf)
+nrow(tT.yeast.seq$table)
+tT.yeast.seq$table %>% 
+	head()
+plotSmear(yeast.seq.dg)
+```
+
+## 7.3 DEA of low sequencing data
+```{r}
+yeast.seq.low <- readr::read_delim("yeast_counts_low_fixed.tsv", delim = "\t")
+yeast.seq.low.dg <- DGEList(counts = yeast.seq.low[2:7], genes = yeast.seq.low[1], group = yeast.design$group)
+yeast.seq.low.dg <- calcNormFactors(yeast.seq.low)
+yeast.seq.low.dg
+# yeast.genes <- yeast_probe_IDs %>% dplyr::select(-probeID)
+# colnames(yeast.genes) <- c("gene", "ensembl_gene_id")
+# yeast.seq.dg$genes <- inner_join(yeast.seq.dg$genes, yeast.genes, by = "gene")
+# yeast.seq.dg$genes <- inner_join(yeast.seq.dg$genes, yeast_probe_IDs)
+```
+
+Okay, looks good.  
+
+Fortunately we've already got our design matrix!
+```{r}
+DM.yeast.seq.low <- model.matrix(~group, yeast.design)
+colnames(DM.yeast.seq.low) <- c("(Intercept)", "chemostat")
+rownames(DM.yeast.seq.low) <- colnames(yeast.seq.low)[2:7]
+DM.yeast.seq.low
+```
+
+Now onto dispersion estimation
+```{r}
+yeast.seq.low.dg <- estimateGLMCommonDisp(yeast.seq.low.dg, DM.yeast.seq)
+yeast.seq.low.dg <- estimateGLMTrendedDisp(yeast.seq.low.dg, DM.yeast.seq)
+yeast.seq.low.dg <- estimateGLMTagwiseDisp(yeast.seq.low.dg, DM.yeast.seq)
+
+estimateSizeFactorsForMatrix(yeast.seq.low.dg$counts)
+plotBCV(yeast.seq.low.dg)
+```
+
+```{r}
+yeast.seq.low.fit <- glmFit(yeast.seq.low.dg, DM.yeast.seq)
+yeast.seq.low.lrt <- glmLRT(yeast.seq.low.fit)
+tT.yeast.seq.low <- topTags(yeast.seq.low.lrt, adjust.method = "fdr", p.value = 1e-5, n = Inf)
+nrow(tT.yeast.seq.low$table)
+tT.yeast.seq.low$table %>% 
+	head()
+plotSmear(yeast.seq.low.dg)
+```
 
 ********
 This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`
