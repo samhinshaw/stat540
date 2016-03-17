@@ -5,7 +5,8 @@ Sam Hinshaw
 
 Welcome to the STAT540 course repository for Sam Hinshaw.   
 
-In this repo you will find my classwork throughout the semester.  I don't have anything here yet, but stay tuned for some exciting analyses!
+If you're here, you're probably looking for my homework assignment!  
+Please check my [homework/](./homework) subdirectory.  
 
 ********
-This page was last updated on  Tuesday, January 12, 2016 at 02:02PM
+This page was last updated on  Wednesday, March 16, 2016 at 10:52PM

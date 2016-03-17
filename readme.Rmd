@@ -9,12 +9,13 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+knitr::opts_chunk$set(echo = TRUE)
 ```
 
 Welcome to the STAT540 course repository for Sam Hinshaw.   
 
-In this repo you will find my classwork throughout the semester.  I don't have anything here yet, but stay tuned for some exciting analyses!
+If you're here, you're probably looking for my homework assignment!  
+Please check my [homework/](./homework) subdirectory.  
 
 ********
 This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`

@@ -1929,11 +1929,6 @@ rownames(noProbes.yeast) <- noProbes.yeast$probeID
 noProbes.yeast$probeID <- NULL
 
 fPCA <- FactoMineR::PCA(noProbes.yeast, scale.unit = FALSE)
-```
-
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-1.png)![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-2.png)
-
-```r
 sPCA <- stats::prcomp(noProbes.yeast, scale. = FALSE)
 (PCA.summary <- summary(sPCA)$importance %>% as.data.frame())
 ```
@@ -3037,4 +3032,4 @@ yeast.seq.low.melt %>%
 <center>\~Fin\~</center>
 
 ********
-This page was last updated on  Wednesday, March 16, 2016 at 10:42PM
+This page was last updated on  Wednesday, March 16, 2016 at 10:44PM
