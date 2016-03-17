@@ -12,21 +12,18 @@ Please view the HTML version of this document, not the GitHub rendering of the `
 suppressPackageStartupMessages({
 	library(limma) # biocLite("limma")
 	library(edgeR) # biocLite("edgeR")
-	library(DESeq2) # biocLite("DESeq2")
-	library(biomaRt)
+	# library(DESeq2) # biocLite("DESeq2")
+	# library(biomaRt)
 	library(yeast2.db) # biocLite("yeast2.db")
 	library(hgu133plus2.db) # biocLite("hgu133plus2.db")
 	library(magrittr)
 	library(devtools)
-	# library(broom)
 	library(ggplot2)
 	library(reshape2)
 	library(readr)
 	library(knitr)
 	library(ggbiplot) # devtools::install_github("vqv/ggbiplot")
 	library(FactoMineR) # install.packages("FactoMineR", dependencies = TRUE)
-	# library(xtable)
-	# library(pander)
 	library(tidyr)
 	library(RColorBrewer)
 	library(viridis)
@@ -2469,16 +2466,6 @@ Now onto dispersion estimation
 yeast.seq.dg <- estimateGLMCommonDisp(yeast.seq.dg, DM.yeast.seq)
 yeast.seq.dg <- estimateGLMTrendedDisp(yeast.seq.dg, DM.yeast.seq)
 yeast.seq.dg <- estimateGLMTagwiseDisp(yeast.seq.dg, DM.yeast.seq)
-
-estimateSizeFactorsForMatrix(yeast.seq.dg$counts)
-```
-
-```
-##        b1        b2        b3        c1        c2        c3 
-## 1.0210856 1.2962299 0.9537809 0.7865995 0.9003757 1.1317226
-```
-
-```r
 plotBCV(yeast.seq.dg)
 ```
 
@@ -2615,15 +2602,6 @@ yeast.seq.low.dg <- estimateGLMCommonDisp(yeast.seq.low.dg, DM.yeast.seq)
 yeast.seq.low.dg <- estimateGLMTrendedDisp(yeast.seq.low.dg, DM.yeast.seq)
 yeast.seq.low.dg <- estimateGLMTagwiseDisp(yeast.seq.low.dg, DM.yeast.seq)
 
-estimateSizeFactorsForMatrix(yeast.seq.low.dg$counts)
-```
-
-```
-##        b1        b2        b3        c1        c2        c3 
-## 1.0721307 1.3965600 1.0198245 0.7726438 0.8978829 1.1224620
-```
-
-```r
 plotBCV(yeast.seq.low.dg)
 ```
 
@@ -2864,6 +2842,9 @@ tail(yeast.seq.low.melt)
 ```
 
 
+### 2 genes reported as differentially expressed in BOTH analyses  
+
+I'm not going to write a function, because this way it is easier for me to change specific aspects of the plot. 
 
 ```r
 yeast.fg.genes %>% 
@@ -2872,7 +2853,8 @@ yeast.fg.genes %>%
 	do(mutate(., mean = mean(intensity))) %>% 
 	ggplot(aes(x = group, y = intensity)) + geom_point(stat = "identity", shape = 1, size = 5) + ylim(0, 13) + 
 	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~geneID) +
-	ggtitle("Intensity of Two Differentially Expressed Genes")
+	ggtitle("Microarray \n \n Intensity of Two Genes Reported as Differentially \n Expressed in Both Microarray Data and RNA-Seq Data") + 
+	ylab("log2-scaled intensity") + xlab("physiological growth conditions")
 ```
 
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-67-1.png)
@@ -2885,11 +2867,174 @@ yeast.seq.low.melt %>%
 	do(mutate(., mean = mean(counts))) %>% 
 	ggplot(aes(x = group, y = counts)) + geom_point(shape = 1, size = 5) + 
 	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~geneID) +
-	ggtitle("Intensity of Two Differentially Expressed Genes")
+	ggtitle("RNA-Seq \n \n Intensity of Two Genes Reported as Differentially \n Expressed in Both Microarray Data and RNA-Seq Data") + 
+	xlab("physiological growth conditions")
 ```
 
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-68-1.png)
 
+### 1 gene reported as differentially expressed in only the microarray assay
+
+
+```r
+set.seed(20)
+(our.array.hit <- setdiff(yeast.DE.genes$gene.id, ## setdiff will return elements in the FIRST argument but not in the second
+					edger.low.results$gene.id) %>% 
+	base::sample(size = 1)
+)
+```
+
+```
+## [1] "YMR123W"
+```
+
+```r
+## Let's just double check I've got the setdiff equation working correctly though, shall we?
+potential.hits <- setdiff(yeast.DE.genes$gene.id, edger.low.results$gene.id)
+potential.hits %>% length()
+```
+
+```
+## [1] 456
+```
+
+```r
+intersect(potential.hits, yeast.DE.genes$gene.id) %>% length() ## we want this to be 456, the same length as our number of hits
+```
+
+```
+## [1] 456
+```
+
+```r
+intersect(potential.hits, edger.low.results$gene.id) %>% length() ## this should be zero. 
+```
+
+```
+## [1] 0
+```
+
+Phew, looks good! Now we've got hits from `yeast.DE.genes` (our microarray results), but not `edger.low.results` (our low depth sequencing results).
+
+```r
+yeast.fg.genes %>% 
+	filter(geneID %in% our.array.hit) %>% 
+	group_by(group) %>% 
+	do(mutate(., mean = mean(intensity))) %>% 
+	ggplot(aes(x = group, y = intensity)) + geom_point(stat = "identity", shape = 1, size = 5) + ylim(0, 13) + 
+	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~geneID) + ## keeping in facet_wrap to get that nice gene heading
+	ggtitle("Microarray \n \n Intensity of Gene Reported as Differentially \n Expressed in Microarray Data, but Not RNA-seq Data") + 
+	ylab("log2-scaled intensity") + xlab("physiological growth conditions")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-70-1.png)
+
+
+```r
+yeast.seq.low.melt %>% 
+	filter(geneID %in% our.array.hit) %>% 
+	group_by(group) %>% 
+	do(mutate(., mean = mean(counts))) %>% 
+	ggplot(aes(x = group, y = counts)) + geom_point(shape = 1, size = 5) + 
+	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~geneID) + ## keeping in facet_wrap to get that nice gene heading
+	ggtitle("RNA-Seq \n \n Counts of Gene Reported as Differentially \n Expressed in Microarray Data, but Not RNA-seq Data") + 
+	xlab("physiological growth conditions")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-71-1.png)
+
+
+### 1 gene reported as differentially expressed in only the RNA-seq assay  
+
+```r
+set.seed(20)
+(our.seq.hit <- setdiff(edger.low.results$gene.id, ## setdiff will return elements in the FIRST argument but not in the second
+					yeast.DE.genes$gene.id) %>% 
+	base::sample(size = 1)
+)
+```
+
+```
+## [1] "YNL115C"
+```
+
+
+```r
+yeast.fg.genes %>% 
+	filter(geneID %in% our.seq.hit) %>% 
+	group_by(group) %>% 
+	do(mutate(., mean = mean(intensity))) %>% 
+	ggplot(aes(x = group, y = intensity)) + geom_point(stat = "identity", shape = 1, size = 5) + ylim(0, 13) + 
+	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~geneID) + ## keeping in facet_wrap to get that nice gene heading
+	ggtitle("Microarray \n \n Intensity of Gene Reported as Differentially \n Expressed in RNA-seq Data, but Not Microarray Data") + 
+	ylab("log2-scaled intensity") + xlab("physiological growth conditions")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-73-1.png)
+
+
+```r
+yeast.seq.low.melt %>% 
+	filter(geneID %in% our.seq.hit) %>% 
+	group_by(group) %>% 
+	do(mutate(., mean = mean(counts))) %>% 
+	ggplot(aes(x = group, y = counts)) + geom_point(shape = 1, size = 5) + 
+	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~geneID) + ## keeping in facet_wrap to get that nice gene heading
+	ggtitle("RNA-Seq \n \n Counts of Gene Reported as Differentially \n Expressed in RNA-seq Data, but Not Microarray Data") + 
+	xlab("physiological growth conditions")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-74-1.png)
+### 1 gene reported as not differentially expressed in either assay 
+
+
+```r
+seq.null.hits <- setdiff(yeast.seq.low$gene, ## setdiff will return elements in the FIRST argument but not in the second
+						 edger.low.results$gene.id) 
+
+array.null.hits <- setdiff(yeast.fixed.genes$geneID, ## setdiff will return elements in the FIRST argument but not in the second
+						   yeast.DE.genes$gene.id) 
+
+set.seed(20)
+(our.null.hit <- intersect(seq.null.hits,
+					array.null.hits) %>% 
+	base::sample(size = 1)
+)
+```
+
+```
+## [1] "YDR297W"
+```
+
+
+```r
+yeast.fg.genes %>% 
+	filter(geneID %in% our.null.hit) %>% 
+	group_by(group) %>% 
+	do(mutate(., mean = mean(intensity))) %>% 
+	ggplot(aes(x = group, y = intensity)) + geom_point(stat = "identity", shape = 1, size = 5) + ylim(0, 13) + 
+	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~geneID) + ## keeping in facet_wrap to get that nice gene heading
+	ggtitle("Microarray \n \n Intensity of Gene Reported as Not Differentially \n Expressed in RNA-seq Data or Microarray Data") + 
+	ylab("log2-scaled intensity") + xlab("physiological growth conditions")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-76-1.png)
+
+
+```r
+yeast.seq.low.melt %>% 
+	filter(geneID %in% our.null.hit) %>% 
+	group_by(group) %>% 
+	do(mutate(., mean = mean(counts))) %>% 
+	ggplot(aes(x = group, y = counts)) + geom_point(shape = 1, size = 5) + 
+	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~geneID) + ## keeping in facet_wrap to get that nice gene heading
+	ggtitle("RNA-Seq \n \n Counts of Gene Reported as Not Differentially \n Expressed in RNA-seq Data or Microarray Data") + 
+	xlab("physiological growth conditions")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-77-1.png)
+
+<center>\~Fin\~</center>
 
 ********
-This page was last updated on  Wednesday, March 16, 2016 at 09:55PM
+This page was last updated on  Wednesday, March 16, 2016 at 10:42PM
