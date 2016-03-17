@@ -1534,6 +1534,126 @@ Woohoo! Now I've effectively modeled all 3 biological scenarios.
 
 
 ```r
+tT.combined <- topTable(efit.combined, coef = 3, adjust = "none", number = Inf, p.value = 1e-3)
+# here, we should see that P.Value = adj.P.Val
+head(tT.combined)
+```
+
+```
+##                   logFC   AveExpr         t      P.Value    adj.P.Val
+## 200912_s_at   0.9042074 14.071987  8.377100 4.665235e-08 4.665235e-08
+## 220468_at     3.0272368  6.488711  8.349103 4.923043e-08 4.923043e-08
+## 1555411_a_at  1.5822496 10.243140  8.287320 5.545521e-08 5.545521e-08
+## 220046_s_at   1.5740991 10.598902  8.055196 8.713100e-08 8.713100e-08
+## 219998_at    -0.7787192  9.276269 -8.007462 9.569961e-08 9.569961e-08
+## 223394_at     1.4579813 10.909886  7.716098 1.707786e-07 1.707786e-07
+##                     B
+## 200912_s_at  8.478163
+## 220468_at    8.430397
+## 1555411_a_at 8.324553
+## 220046_s_at  7.921528
+## 219998_at    7.837597
+## 223394_at    7.317458
+```
+
+```r
+nrow(tT.combined)
+```
+
+```
+## [1] 621
+```
+
+So 621 significant genes at p < 0.001 when looking at combined effect.
+
+
+```r
+tT.combined.sig.fdr <- topTable(efit.combined, coef = 3, adjust = "fdr", number = Inf, p.value = 0.05)
+head(tT.combined.sig.fdr)
+```
+
+```
+##                   logFC   AveExpr         t      P.Value    adj.P.Val
+## 200912_s_at   0.9042074 14.071987  8.377100 4.665235e-08 0.0004202951
+## 220468_at     3.0272368  6.488711  8.349103 4.923043e-08 0.0004202951
+## 1555411_a_at  1.5822496 10.243140  8.287320 5.545521e-08 0.0004202951
+## 220046_s_at   1.5740991 10.598902  8.055196 8.713100e-08 0.0004351844
+## 219998_at    -0.7787192  9.276269 -8.007462 9.569961e-08 0.0004351844
+## 223394_at     1.4579813 10.909886  7.716098 1.707786e-07 0.0006471653
+##                     B
+## 200912_s_at  8.478163
+## 220468_at    8.430397
+## 1555411_a_at 8.324553
+## 220046_s_at  7.921528
+## 219998_at    7.837597
+## 223394_at    7.317458
+```
+
+```r
+nrow(tT.combined.sig.fdr)
+```
+
+```
+## [1] 768
+```
+
+And 768 significant genes with FDR correction and p < 0.05.  
+
+Now how about with the combined model?
+
+
+>*Is this number different from what you reported in 3.2? Why? Quantify the proportion of overlapping probes among your hits, when using the unadjusted p-value threshold of 1e-3.*
+
+Here we have just 768 significantly different genes, down from 805 when just considering treatment.  Let's look at the overlap (when not using FDR correction). We'll compare our toptables, `tT.treatment` and `tT.combined`.  
+
+```r
+tT.treatment %<>% tbl_df()
+tT.combined$ProbeID <- rownames(tT.combined)
+tT.combined %<>% tbl_df()
+intersect(tT.combined$ProbeID, tT.treatment$ProbeID) %>% length()
+```
+
+```
+## [1] 328
+```
+
+Okay, we've got an overlap of 328 genes, I'd say that's a decent overlap.  
+
+>*Plot the distributions of all the p-values for treatment when using both models, i.e., one from the model in Q3 and one from the full model in this question. Compare and comment on the similarity/differences in the shape of the distributions.*
+
+Sweet, I've already done this! We can run them again though.  I'll plot the p-value distributions when using the FDR correction, as this will more accurately reflect real hits, but I'll make sure to not cap at p < 0.05 this time though.  
+
+```r
+tT.treatment.fdr <- topTable(efit, adjust = "fdr", number = Inf)
+
+p <- ggplot(tT.treatment.fdr, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 0.01) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution for Treatment Model")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-1.png)
+
+```r
+tT.combined.fdr <- topTable(efit.combined, coef = 1, adjust = "fdr", number = Inf)
+
+p <- ggplot(tT.combined.fdr, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 0.01) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution for Combined Model")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-2.png)
+
+The p-value distributions look very similar when compared directly, but it seems as though we may have fewer significant hits when using our combined model.  That doesn't seem right, I would've expected to see a skew towards significance in the combined model, since we're more accurately separating our groups. Let's come back to this later.  
+
+## 5.2 Test the null hypothesis
+
+>*Explain in English what you are modeling with this interaction term (what does it represent?).*
+>*For how many probes is the interaction effect significant at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
+
+
+```r
 tT.combined <- topTable(efit.combined, coef = 1, adjust = "none", number = Inf, p.value = 1e-3)
 # here, we should see that P.Value = adj.P.Val
 head(tT.combined)
@@ -1598,57 +1718,6 @@ nrow(tT.combined.sig.fdr)
 ```
 
 And 664 significant genes with FDR correction and p < 0.05.  
-
->*Is this number different from what you reported in 3.2? Why? Quantify the proportion of overlapping probes among your hits, when using the unadjusted p-value threshold of 1e-3.*
-
-Here we have just 716 significantly different genes, down from 805 when just considering treatment.  Let's look at the overlap. We'll compare our toptables, `tT.treatment` and `tT.combined`.  
-
-```r
-tT.treatment %<>% tbl_df()
-tT.combined$ProbeID <- rownames(tT.combined)
-tT.combined %<>% tbl_df()
-tT.combined$ProbeID %in% tT.treatment$ProbeID %>% # listing the smaller length list first just to be safe
-	sum() # this treats TRUE as 1 and FALSE as 0
-```
-
-```
-## [1] 26
-```
-
-Okay, we've got an overlap of 26 genes, I'd say that's expected.  
-
->*Plot the distributions of all the p-values for treatment when using both models, i.e., one from the model in Q3 and one from the full model in this question. Compare and comment on the similarity/differences in the shape of the distributions.*
-
-Sweet, I've already done this! We can run them again though.  I'll plot the p-value distributions when using the FDR correction, as this will more accurately reflect real hits, but I'll make sure to not cap at p < 0.05 this time though.  
-
-```r
-tT.treatment.fdr <- topTable(efit, adjust = "fdr", number = Inf)
-
-p <- ggplot(tT.treatment.fdr, aes(x = adj.P.Val))
-p + geom_histogram(binwidth = 0.01) + 
-	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
-	ggtitle("P-Value Distribution for Treatment Model")
-```
-
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-1.png)
-
-```r
-tT.combined.fdr <- topTable(efit.combined, coef = 1, adjust = "fdr", number = Inf)
-
-p <- ggplot(tT.combined.fdr, aes(x = adj.P.Val))
-p + geom_histogram(binwidth = 0.01) + 
-	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
-	ggtitle("P-Value Distribution for Combined Model")
-```
-
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-2.png)
-
-The p-value distributions look very similar when compared directly, but it seems as though we may have fewer significant hits when using our combined model.  That doesn't seem right, I would've expected to see a skew towards significance in the combined model, since we're more accurately separating our groups. Let's come back to this later.  
-
-## 5.2 Test the null hypothesis
-
->*Explain in English what you are modeling with this interaction term (what does it represent?).*
->*For how many probes is the interaction effect significant at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
 
 >*Null hypothesis: there’s no significant interaction between time and treatment.*
 
@@ -1727,7 +1796,7 @@ yeast %>% dplyr::select(-probeID) %>%
 	)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-25-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-1.png)
 
 Beautiful! I'm glad I found the `ggpairs()` function, that's made my life a lot easier.  
 We can see easily now, that we've got correlation between two groups:  
@@ -1806,7 +1875,7 @@ ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) +
 	scale_fill_gradientn(colors = heatmapcolors)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-29-1.png)
 
 Okay, now let's rearrange based on what we decided from our pairwise sample-sample scatterplots and what looks like some obvious clustering in our first heatmap.
 
@@ -1820,7 +1889,7 @@ ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) +
 	scale_fill_gradientn(colors = heatmapcolors)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-28-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-30-1.png)
 
 This makes it seem rather apparent that b1, c1, and c3 are part of one group, and c2, b3, and b2 are part of another group.  Either that or there are some serious flaws with these microarrays.  
 
@@ -1836,7 +1905,7 @@ gath.yeast %>%
 	ylab("probeID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-29-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-31-1.png)
 
 And now with our samples sorted into what we believe to be the true groups.  
 
@@ -1853,7 +1922,7 @@ gath.yeast %>%
 	ylab("probeID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-30-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-32-1.png)
 
 Finally, how about PCA? We can use `FactoMineR::PCA` to get a simple plot, or use `stats::prcomp` for an object we can pipe into `ggplot2`.  
 
@@ -1865,7 +1934,7 @@ noProbes.yeast$probeID <- NULL
 fPCA <- FactoMineR::PCA(noProbes.yeast, scale.unit = FALSE)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-31-1.png)![](SamHinshawHomework_files/figure-html/unnamed-chunk-31-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-1.png)![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-2.png)
 
 ```r
 sPCA <- stats::prcomp(noProbes.yeast, scale. = FALSE)
@@ -1895,7 +1964,7 @@ ggplot(PCA.rotation, aes(x = PC1, y = PC2, label = rownames(PCA.rotation))) +
 	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-32-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-1.png)
 
 Note that we get a different looking distribution if we scale our values. Regardless, the clustering is obvious, and our principal components are the same.  
 
@@ -1923,7 +1992,7 @@ ggplot(PCA.rotation.scaled, aes(x = PC1, y = PC2, label = rownames(PCA.rotation)
 	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-33-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-35-1.png)
 
 Finally, if we also wanted to plot our observations, we could use the `ggbiplot` package.  
 
@@ -1936,7 +2005,7 @@ g + scale_color_discrete(name = '') +
 	ggtitle("PCA Plot of Yeast Samples")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-36-1.png)
 
 Given all of these plots, we can now satisfactorally conclude that samples b1 and c2 have accidentally been swapped. Let's fix that and continue!
 
@@ -2073,7 +2142,7 @@ results.yeast <- decideTests(efit.yeast)
 vennDiagram(results.yeast)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-39-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-41-1.png)
 
 Great! Let's check out our p-value distribution before we continue though
 
@@ -2084,7 +2153,7 @@ p + geom_histogram(binwidth = 0.05) +
 	ggtitle("P-Value Distribution of Significant \n Genes with BH Correction")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-40-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-42-1.png)
 
 That looks pretty drastic, but I'm not sure it's wrong. Let's pull out our answers
 
@@ -2326,7 +2395,7 @@ ggplot(yeast.seq.cor, aes(x = Var1, y = Var2, fill = correlation)) +
 	scale_fill_gradientn(colors = tilegradient.short)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-44-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-46-1.png)
 
 ## 7.2 DEA of deep sequencing data
 
@@ -2415,7 +2484,7 @@ estimateSizeFactorsForMatrix(yeast.seq.dg$counts)
 plotBCV(yeast.seq.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-47-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-49-1.png)
 
 
 ```r
@@ -2448,7 +2517,7 @@ tT.yeast.seq$table %>%
 plotSmear(yeast.seq.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-48-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-50-1.png)
 
 Finally, let's pull our topTags results into a specific data.frame as specified by the homework.  
 
@@ -2547,7 +2616,7 @@ estimateSizeFactorsForMatrix(yeast.seq.low.dg$counts)
 plotBCV(yeast.seq.low.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-52-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-54-1.png)
 
 
 ```r
@@ -2580,7 +2649,7 @@ tT.yeast.seq.low$table %>%
 plotSmear(yeast.seq.low.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-53-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-55-1.png)
 
 And let's write out our results as with deep sequencing!
 
@@ -2623,10 +2692,10 @@ draw.pairwise.venn(area1 = length(yeast.seq.overlap$a1),
 )
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-55-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-57-1.png)
 
 ```
-## (polygon[GRID.polygon.2128], polygon[GRID.polygon.2129], polygon[GRID.polygon.2130], polygon[GRID.polygon.2131], text[GRID.text.2132], text[GRID.text.2133], text[GRID.text.2134], text[GRID.text.2135])
+## (polygon[GRID.polygon.3247], polygon[GRID.polygon.3248], polygon[GRID.polygon.3249], polygon[GRID.polygon.3250], text[GRID.text.3251], text[GRID.text.3252], text[GRID.text.3253], text[GRID.text.3254])
 ```
 
 Looks good, seems like our low depth sequencing data is a perfect subset (486) of our deep sequencing (2240).  Therefore, overall we've got just 2240 hits, and it seems like lower depth sequencing just reduces our power to detect differentially expressed genes (albeit perhaps with some other costs).
@@ -2635,4 +2704,4 @@ Looks good, seems like our low depth sequencing data is a perfect subset (486) o
 # 8 Compare DEA results from RNA-Seq and arrays
 
 ********
-This page was last updated on  Wednesday, March 16, 2016 at 11:58AM
+This page was last updated on  Wednesday, March 16, 2016 at 12:12PM

@@ -750,34 +750,36 @@ Woohoo! Now I've effectively modeled all 3 biological scenarios.
 >*For how many probes is treatment a significant factor at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
 
 ```{r}
-tT.combined <- topTable(efit.combined, coef = 1, adjust = "none", number = Inf, p.value = 1e-3)
+tT.combined <- topTable(efit.combined, coef = 3, adjust = "none", number = Inf, p.value = 1e-3)
 # here, we should see that P.Value = adj.P.Val
 head(tT.combined)
 nrow(tT.combined)
 ```
 
-So 573 significant genes at p < 0.001 when looking at combined effect.
+So 621 significant genes at p < 0.001 when looking at combined effect.
 
 ```{r}
-tT.combined.sig.fdr <- topTable(efit.combined, coef = 1, adjust = "fdr", number = Inf, p.value = 0.05)
+tT.combined.sig.fdr <- topTable(efit.combined, coef = 3, adjust = "fdr", number = Inf, p.value = 0.05)
 head(tT.combined.sig.fdr)
 nrow(tT.combined.sig.fdr)
 ```
 
-And 664 significant genes with FDR correction and p < 0.05.  
+And 768 significant genes with FDR correction and p < 0.05.  
+
+Now how about with the combined model?
+
 
 >*Is this number different from what you reported in 3.2? Why? Quantify the proportion of overlapping probes among your hits, when using the unadjusted p-value threshold of 1e-3.*
 
-Here we have just 716 significantly different genes, down from 805 when just considering treatment.  Let's look at the overlap. We'll compare our toptables, `tT.treatment` and `tT.combined`.  
+Here we have just 573 significantly different genes, down from 805 when just considering treatment (when NOT using FDR correction).  Let's look at the overlap. We'll compare our toptables, `tT.treatment` and `tT.combined`.  
 ```{r}
 tT.treatment %<>% tbl_df()
 tT.combined$ProbeID <- rownames(tT.combined)
 tT.combined %<>% tbl_df()
-tT.combined$ProbeID %in% tT.treatment$ProbeID %>% # listing the smaller length list first just to be safe
-	sum() # this treats TRUE as 1 and FALSE as 0
+intersect(tT.combined$ProbeID, tT.treatment$ProbeID) %>% length()
 ```
 
-Okay, we've got an overlap of 26 genes, I'd say that's expected.  
+Okay, we've got an overlap of 328 genes, I'd say that's a decent overlap.  
 
 >*Plot the distributions of all the p-values for treatment when using both models, i.e., one from the model in Q3 and one from the full model in this question. Compare and comment on the similarity/differences in the shape of the distributions.*
 
@@ -804,6 +806,23 @@ The p-value distributions look very similar when compared directly, but it seems
 
 >*Explain in English what you are modeling with this interaction term (what does it represent?).*
 >*For how many probes is the interaction effect significant at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
+
+```{r}
+tT.combined <- topTable(efit.combined, coef = 1, adjust = "none", number = Inf, p.value = 1e-3)
+# here, we should see that P.Value = adj.P.Val
+head(tT.combined)
+nrow(tT.combined)
+```
+
+So 573 significant genes at p < 0.001 when looking at combined effect.
+
+```{r}
+tT.combined.sig.fdr <- topTable(efit.combined, coef = 1, adjust = "fdr", number = Inf, p.value = 0.05)
+head(tT.combined.sig.fdr)
+nrow(tT.combined.sig.fdr)
+```
+
+And 664 significant genes with FDR correction and p < 0.05.  
 
 >*Null hypothesis: there’s no significant interaction between time and treatment.*
 
@@ -1022,6 +1041,9 @@ fit.yeast <- yeast.fixed %>%
 fit.yeast <- contrasts.fit(fit.yeast, contrast.matrix.yeast)
 efit.yeast <- eBayes(fit.yeast)
 tT.yeast <- topTable(efit.yeast, adjust.method="BH", number = Inf) # I know BH is default, but it's still good to specify
+## do fdr correction with p.value cutoff of 1e-5
+#tT.yeast <- topTable(efit.yeast, adjust.method="fdr", number = Inf, p.value = 1e-5) # I know BH is default, but it's still good to specify
+
 tT.yeast %>% head() %>% kable("markdown")
 results.yeast <- decideTests(efit.yeast)
 vennDiagram(results.yeast)
