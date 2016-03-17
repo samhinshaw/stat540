@@ -121,6 +121,8 @@ Before we do anything, let's see what's what in our experiment, [GSE10718](http:
 Gene expression patterns were assessed in normal human bronchial epithelial (NHBE) cells exposed to cigarette smoke (CS) from a typical "full flavor" American brand of cigarettes in order to develop a better understanding of the genomic impact of tobacco exposure, which can ultimately define biomarkers that discriminate tobacco-related effects and outcomes in a clinical setting. NHBE cells were treated with CS for 15 minutes and alterations to the transcriptome assessed at 1,2,4 and 24 hours post-CS-exposure using high-density oligonucleotide microarrays.
 </blockquote>
 
+>*Please load and inspect the data and the meta-data. Fiddle with factor levels and do any other light cleaning you deem necessary.*  
+
 ### Import Data
 ```{r read data.txt}
 data <- readr::read_delim("data.txt", delim = "\t")
@@ -167,7 +169,9 @@ design <- readr::read_delim("design_fixed.txt", delim = "\t")
 glimpse(design)
 ```
 
-### Inspect Data
+### Inspect Data  
+>*How many genes are in our data? How many samples?*  
+>*Check the breakdown for treatment and time. Do you think it’s a good experiment design?*  
 
 There we go! So we've got 23 samples. How many different treatment groups, and how many different timepoints?
 ```{r tally}
@@ -187,7 +191,9 @@ That's a pretty good summary of what's going on, I'd say. Now back to our data f
 nrow(data)
 ```
 
-22,737 probes.  Do we know any microarrays that have exactly that many genes?  Fortunately, we don't need to wonder. This study, [GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718) used [GPL570](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL570), the well known Affymetrix HG U133+ 2.0 Array. Later we can use biomaRt to convert our probeIDs to ensembl IDs (or another equivalent), given the platform information. 
+22,737 probes.  Do we know any microarrays that have exactly that many genes?  Fortunately, we don't need to wonder. This study, [GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718) used [GPL570](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL570), the well known Affymetrix HG U133+ 2.0 Array. Later we can convert our probeIDs to ensembl IDs (or another equivalent), given the platform information. 
+
+I'd say this is a decent experimental design overall.  It really depends on what the experimenters wanted to know.  Personally, I would've wanted to reduce the number of timepoints to increase my biological replicates at any given timepoint.  Biologically speaking, I am not sure the 1 hour timepoint is all that useful.  Still, 3 replicates at each timepoint (minus one for the CS_1h group) isn't too bad.  
 
 ## 1.2 Basic Data Manipulation
 Before we continue, let's create a new column in our dataset that holds our time post-treatment as hours.
@@ -209,72 +215,7 @@ design$time <- as.factor(design$time)
 
 ### Intensity Distributions
 
-Let's get biomaRt out of the way so we can move on.  
-```{r biomaRt, cache = TRUE, eval = FALSE}
-# ensembl <- useMart("ensembl") # set up biomaRt to use the ensembl database
-# datasets <- listDatasets(ensembl) # store our datasets so we can see which to use
-# ensembl <- useDataset("hsapiens_gene_ensembl", mart = ensembl) # use the human data set!
-# filters <- listFilters(ensembl) # find what filters we can use and cross fingers that it's here
-# attributes <- listAttributes(ensembl) # ditto with the attributes
-# affy_probe_IDs <- getBM(attributes = c("ensembl_gene_id", "affy_hg_u133_plus_2"), 
-# 						filters = "affy_hg_u133_plus_2", 
-# 						values = data$ProbeID, 
-# 						mart = ensembl, 
-# 						uniqueRows = TRUE
-# 						) # query the probeIDs
-# head(affy_probe_IDs)
-# colnames(affy_probe_IDs) <- c("ensembl_gene_id", "ProbeID")
-# merged.data <- merge(data, affy_probe_IDs, by = base::intersect(affy_probe_IDs$ProbeID, data$ProbeID), 
-# 					 all.y = TRUE, all.x = FALSE, 
-# 					 by.x = by, by.y = by)
-# 
-# joined_probeIDs <- data$ProbeID
-# rownames(data) <- data$ProbeID
-# glimpse(data)
-# 
-# affy_probe_IDs_hgnc <- getBM(attributes = c("hgnc_symbol", "affy_hg_u133_plus_2"), 
-# 							 filters = "affy_hg_u133_plus_2", 
-# 							 values = data$ProbeID, 
-# 							 uniqueRows = TRUE,
-# 							 mart = ensembl
-# 							 ) # query the probeIDs
-# colnames(affy_probe_IDs_hgnc) <- c("hgnc_symbol", "ProbeID")
-```
-
-
-```{r}
-# affy.gene.sybmols <- mget(data$ProbeID, hgu133plus2SYMBOL)
-# # affy.gene.ensembl <- mget(data$ProbeID, hgu133plus2ENSEMBL)
-# length(unique(affy.gene.sybmols))
-# length(affy.gene.sybmols)
-# 
-# probe.symbols <- data.frame(
-# 	"ProbeID" = names(affy.gene.sybmols),
-# 	"geneSymbol" = unlist(affy.gene.sybmols), 
-# 	stringsAsFactors = FALSE
-# ) %>% tbl_df()
-# 
-# probe.symbols %<>% 
-# 	dplyr::filter(!is.na(geneSymbol))
-
-# 
-# probe.geneID <- data.frame(
-# 	"ProbeID" = names(affy.gene.ensembl),
-# 	"geneID" = unlist(affy.gene.ensembl), 
-# 	stringsAsFactors = FALSE
-# ) %>% tbl_df()
-# 
-# probe.geneID %<>% 
-# 	dplyr::filter(!is.na(geneID))
-# 
-# probes.symbols.IDs <- inner_join(probe.symbols, probe.geneID, by = "probeID")
-
-# data <- right_join(data, probe.symbols, by = "ProbeID")
-# data.merged <- inner_join(data.merged, probe.geneID, by = "ProbeID")
-
-```
-
-Now we can `gather()` our data for easy plotting, and even join our design data as well. 
+Let's `gather()` our data for easy plotting, and even join our design data as well. 
 ```{r gather data}
 gathered_data <- data %>% 
 	gather("InternalID", "intensity", 2:24)
@@ -308,6 +249,37 @@ p + geom_density(aes(fill = Treatment)) +
 	facet_wrap( ~ ExternalID, ncol = 5) + ggtitle("Log2 Intensities of Samples in GSE10718")
 ```
 
+These look like they've been quantile-normalized, shall we overlay them to check?
+```{r}
+ggplot(data) +
+	geom_density(aes(x = GSE10718_Biomat_1)) + 
+	geom_density(aes(x = GSE10718_Biomat_2)) + 
+	geom_density(aes(x = GSE10718_Biomat_3)) + 
+	geom_density(aes(x = GSE10718_Biomat_4)) + 
+	geom_density(aes(x = GSE10718_Biomat_5)) + 
+	geom_density(aes(x = GSE10718_Biomat_6)) + 
+	geom_density(aes(x = GSE10718_Biomat_7)) + 
+	geom_density(aes(x = GSE10718_Biomat_8)) + 
+	geom_density(aes(x = GSE10718_Biomat_9)) + 
+	geom_density(aes(x = GSE10718_Biomat_10)) + 
+	geom_density(aes(x = GSE10718_Biomat_11)) + 
+	geom_density(aes(x = GSE10718_Biomat_12)) + 
+	geom_density(aes(x = GSE10718_Biomat_13)) + 
+	geom_density(aes(x = GSE10718_Biomat_14)) + 
+	geom_density(aes(x = GSE10718_Biomat_15)) + 
+	geom_density(aes(x = GSE10718_Biomat_16)) + 
+	geom_density(aes(x = GSE10718_Biomat_17)) + 
+	geom_density(aes(x = GSE10718_Biomat_19)) + 
+	geom_density(aes(x = GSE10718_Biomat_21)) + 
+	geom_density(aes(x = GSE10718_Biomat_20)) + 
+	geom_density(aes(x = GSE10718_Biomat_22)) + 
+	geom_density(aes(x = GSE10718_Biomat_23)) + 
+	xlab("log2 intensity") +
+    ggtitle("Log2-Intensities for All Samples in GSE10718")
+```
+
+Perhaps not, but they look very close!
+
 ### Single Probe Intensity
 
 As per the homework, let's plot the gene expression data for a single probe. Let's pick one at pseudo-random!
@@ -320,20 +292,24 @@ singleprobe <- gathered_data %>%
 
 ```{r plot single probe}
 ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) + 
-	geom_bar(stat = "identity") +
-	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+	geom_bar(stat = "identity") + ylab("log2 intensity") +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	ggtitle("Intensity for Probe \"231836_at\" in Each Sample")
 ```
 
 Okay, so we see we've got pretty similar intensities throughout the samples.  But let's group them anyways! First by treatment.
+I could facet here, but it would just make comparisons harder. 
 ```{r plot single probe treatments}
 ggplot(data = singleprobe, aes(y = intensity, x = Treatment)) + 
-	geom_bar(stat = "identity", width = 0.5)
+	geom_bar(stat = "identity", width = 0.5) + ylab("log2 intensity") +
+	ggtitle("Intensity for Probe \"231836_at\" in Each Treatment Group")
 ```
 
 ...then by time
 ```{r plot single probe times}
 ggplot(data = singleprobe, aes(y = intensity, x = time)) + 
-	geom_bar(stat = "identity", width = 0.5)
+	geom_bar(stat = "identity", width = 0.5) + ylab("log2 intensity")
+	ggtitle("Intensity for Probe \"231836_at\" in Each Time Group")
 ```
 
 Ah-hah! That's rather interesting...
@@ -347,7 +323,8 @@ singleprobe <- gathered_data %>%
 And now to plot...
 ```{r plot single probe perms}
 ggplot(data = singleprobe, aes(y = intensity, x = perm)) + 
-	geom_bar(stat = "identity", width = 0.5) +
+	geom_bar(stat = "identity", width = 0.5) + xlab("Experimental Group (Treatment and Time)") +
+	ylab("log2 intensity") + ggtitle("Intensity for Probe \"231836_at\" \n in Each Experimental Group") +
 	theme(axis.text.x = element_text(angle = 65, hjust = 1))
 ```
 
@@ -372,7 +349,8 @@ singleprobe %<>%
 ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) + 
 	geom_bar(stat = "identity", aes(fill = perm)) +
 	scale_fill_manual(values = perm_palette) + labs(fill = "Conditions") +
-	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	xlab("Sample") + ylab("log2 intensity") + ggtitle("Intensity for Probe \"231836_at\" in Each Sample")
 ```
 
 
@@ -382,6 +360,7 @@ Moving on, let's start looking at our data quality, not just visualizing it.
 
 ## 2.1 Heatmaps
 
+>*Create the following sample-sample correlation matrices.*
 ```{r}
 datacor <- data %>% 
 	dplyr::select(-ProbeID) %>% 
@@ -406,7 +385,10 @@ design_for_corr2 <- design_for_corr %>%
 colnames(design_for_corr2) <- c("Var2", "qualitative2", "hours2", "Treatment2")
 joined_corr %<>% 
 	inner_join(design_for_corr2, by = "Var2")
-## Rearrange & reorder by time & then treatment
+```
+
+>*Order the samples by time; within each time group, sort on the other factor, i.e., agent (treatment).*
+```{r}
 by_time <- joined_corr %>% 
 	arrange(-hours, Treatment)
 by_time$factororder <- 1:nrow(by_time)
@@ -417,7 +399,10 @@ by_time %<>%
 by_time$factororder2 <- 1:nrow(by_time)
 by_time %<>% 
 	mutate(qualitative2 = reorder(qualitative2, factororder2, max))
-## Rearrange & reorder by treatment & then time
+```
+
+>*Order the samples by agent; and within each agent group, sort by time.*
+```{r}
 by_treatment <- joined_corr %>% 
 	arrange(Treatment, -hours)
 by_treatment$factororder <- 1:nrow(by_treatment)
@@ -452,10 +437,27 @@ ggplot(by_treatment, aes(x = qualitative2, y = qualitative, fill = value)) +
 	scale_fill_gradientn(colors = tilegradient)
 ```
 
+We can also do a quick histogram of our correlations to check our general distribution.  
+```{r}
+ggplot(joined_corr, aes(x = value)) + geom_histogram(binwidth = 0.002) + 
+	xlab("Correlation") + ylab("Frequency") +
+	ggtitle("Correlation Distribution")
+```
+
+Fantastic, barely anything under 0.9!
+
+>*Interpret your results. What does the sample correlation matrix tell us about the overall impact of time and agent?*
+This has told us that "GSM270874" or "GSE10718-Biomat-10" seems to be an outlier, and no significant batch effects are noticeable.  
+
 ## 2.2 Outliers
 
-Okay. That's an absolutely horrendous amount of code just to reorder a damn heatmap. I'm never doing that again, I'll stick with my unordered heatmap, which told me what I needed to know. "GSM270874" or "GSE10718-Biomat-10" is an outlier. No significant batch effects noticeable. 
+>*Comment on the potential presence of outliers (if any) based on the sample correlation matrices created in Q2a.*
 
+See above. 
+
+>*Try to go beyond merely eyeballing??, and make a quantitative statement about presence of an outlier: e.g., quantify for each sample, whether it “sticks out” compared to the other samples.*
+
+Let's try to quantify our outliers. We should only really be worried once we start to get under 0.9 correlation, so let's check for that.
 ```{r}
 outliers <- joined_corr %>% 
 	dplyr::filter(InternalID == "GSE10718_Biomat_10")
@@ -467,42 +469,27 @@ outliers %>%
 	summarize(MeanCorr = mean(value))
 ```
 
-Okay, looks like an outlier, but how can we be sure? What's the average correlation?
-```{r}
-joined_corr %>% 
-	dplyr::filter(value != 1.0) %>% 
-	group_by(InternalID) %>% 
-	summarize(MeanCorr = mean(value)) %>% 
-	arrange(-MeanCorr) %>% 
-	kable("markdown")
+Okay, looks like an outlier, as it's mean correlation with everything except itself is under 0.9.  It's not too bad though, we could probably leave it in. 
 
-## What about within groups?
+>*If any sample does “stick out” from the previous step, examine it in the context of its experimental group (e.g., given a sample that is least similar to all other samples: does it correlate with samples treated with same agent better than other samples treated with a different agent?)*
 
-joined_corr %>% 
-	dplyr::filter(value != 1.0) %>% 
-	group_by(Treatment, hours) %>% 
-	summarize(MeanCorr = mean(value)) %>% 
-	arrange(-MeanCorr) %>% 
-	kable("markdown")
-```
-
-Lastly, how does this outlier sample compare to specific treatments (This is a 1hr control sample). For this I'll filter out correlation with itself.
+Let's check one more thing though--let's see which groups it correlates most with.  
+Specifically, how does this outlier sample compare to specific treatments (This is a 1hr control sample). Again I'll filter out correlation with itself.
 ```{r}
 outliers %>% 
 	dplyr::filter(Var2 != "GSE10718_Biomat_10") %>% 
 	group_by(Treatment2, hours2) %>% 
-	summarize(MeanCorr = mean(value)) %>% 
-	arrange(-MeanCorr) %>% 
+	summarize(MeanCorr = mean(value)) %>% tbl_df() %>% 
+	arrange(-MeanCorr) %>%
 	kable("markdown")
 ```
 
-At last, something meaningful!! This sample correlates MOST those samples within its own group, but also highly with the 1hr cigarette smoke group.  
-
-Quantitatively, it would help to look at mean standard deviation.  
+At last, something meaningful!! This sample correlates MOST those samples within its own group, but also highly with the 1hr cigarette smoke group (moreso than the other timepoints in its treatment group).  This may be some cause for concern, but I will leave it in the analysis for now.  
 
 # 3 Differential Expression with Respect to Treatment
 
 ## 3.1 Linear Model
+>*Fit a linear model, modeling expression level of each probe using treatment as a single covariate.*
 ```{r}
 rownames(data) <- data$ProbeID
 fitdata <- data %>% 
@@ -526,6 +513,8 @@ results <- decideTests(efit)
 vennDiagram(results)
 ```
 
+>*Write out in English and as an equation the model you are using to assess differential expression. In the context of that model, what statistical test are you performing?*
+
 In this model, we have ignored time as a covariate, comparing samples against each other just based on treatment group.  In equation terms...
 $$Y = X\alpha + \epsilon$$
 <center> or </center>
@@ -544,6 +533,7 @@ epsilon = the error of our samples
 
 If that equation isn't formatting correctly, make sure you're viewing the HTML version, not the .md version github has formatted. 
 
+In the context of the statistical model, we are performing a t test on each gene, with moderated variance (via the empirical Bayes moderation).
 
 ## 3.2 Hits in Linear Model
 
@@ -558,8 +548,7 @@ nrow(tT.treatment)
 tT.treatment$ProbeID <- rownames(tT.treatment)
 tT.treatment.sig.fdr <- topTable(efit, adjust = "fdr", number = Inf, 
 								 p.value = 0.05, sort.by = "p")
-## What is my FDR?
-head(tT.treatment.sig.fdr$adj.P.Val, n = 50) %>% sum()
+
 tT.treatment.sig.fdr$ProbeID <- rownames(tT.treatment.sig.fdr)
 nrow(tT.treatment.sig.fdr)
 head(tT.treatment.sig.fdr)
@@ -577,28 +566,32 @@ p + geom_histogram(binwidth = 1e-3) +
 
 Looks pretty good!
 
->*Take the top 50 probes as your “hits” and create a heatmap of their expression levels. Sort the hits by p-values and the samples by treatment.*
 
 Okay, so we've got 1238 hits, let's take the top 50 hits, and then we should go back to our data and filter by the probeIDs. 
 ```{r}
-# gathered_data2 <- data %>% 
-# 	gather("InternalID", "intensity", 2:24)
-# glimpse(gathered_data2)
-# gathered_data2 <- inner_join(gathered_data2, design, by = "InternalID")
-# glimpse(gathered_data2)
 gathered_data %<>% 
 	mutate(qualitative = paste0(Treatment, "_", as.character(hours), "_", ExternalID))
 tT.sig.fdr.filtered <- tT.treatment.sig.fdr %>% 
 	head(n = 50) %>% tbl_df()
+
+## What is my FDR?
+tT.sig.fdr.filtered$adj.P.Val %>% sum()
+```
+
+>*What is the (estimated) false discovery rate of this “hits” list? How many of these hits do we expect to be false discoveries?*
+Looks like our False Discovery Rate for these top probes is just 0.025! So the probability of having just one false hit in this list is 0.025.
+
+>*Take the top 50 probes as your “hits” and create a heatmap of their expression levels. Sort the hits by p-values and the samples by treatment.*
+
+Some reordering MAGIC!
+```{r}
 tT.sig.fdr.filtered
 topHits <- gathered_data %>% 
 	dplyr::filter(ProbeID %in% tT.sig.fdr.filtered$ProbeID)
 nrow(topHits)
-
 topHits <- inner_join(topHits, tT.sig.fdr.filtered, by = "ProbeID")
-# topHits <- semi_join(topHits, affy_probe_IDs_hgnc, by = "ProbeID")
-
 glimpse(topHits)
+# topHits <- semi_join(topHits, affy_probe_IDs_hgnc, by = "ProbeID")
 topHits$qualitative %<>% as.factor()
 topHits %<>% 
 	arrange(Treatment, hours)
@@ -628,7 +621,7 @@ ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) +
 	ylab("Gene Symbol (p-value)")
 ```
 
-Let's also sort just on time
+Let's also sort just on time... for curiosity. 
 ```{r, fig.height = 10, fig.width = 6}
 topHits %<>% 
 	arrange(hours, Treatment)
@@ -677,8 +670,10 @@ p <- ggplot(tT.time, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 1e-3) + 
 	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
 	ggtitle("P-Value Distribution of Significant Genes") + xlim(0, 0.05)
-## That's actually not so meaningful since we've filtered on all p-values under 0.001
+```
 
+That's actually not so meaningful since we've filtered on all p-values under 0.001
+```{r}
 # topTable.time$ProbeID <- rownames(topTable.time)
 tT.time.sig.fdr <- topTable(efit.time, adjust = "fdr", number = Inf, p.value = 0.05)
 # topTable.time.sig.fdr$ProbeID <- rownames(topTable.time.sig.fdr)
@@ -807,21 +802,44 @@ tT.treatment.fdr <- topTable(efit, adjust = "fdr", number = Inf)
 p <- ggplot(tT.treatment.fdr, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 0.01) + 
 	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
-	ggtitle("P-Value Distribution for Treatment Model")
+	ggtitle("P-Value Distribution for Treatment \n When Modeling Treatment Only")
 
-tT.combined.fdr <- topTable(efit.combined, coef = 1, adjust = "fdr", number = Inf)
+tT.combined.fdr <- topTable(efit.combined, coef = 3, adjust = "fdr", number = Inf)
 
 p <- ggplot(tT.combined.fdr, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 0.01) + 
 	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
-	ggtitle("P-Value Distribution for Combined Model")
+	ggtitle("P-Value Distribution for Treatment \n When Modeling Treatment and Time")
 ```
 
-The p-value distributions look very similar when compared directly, but it seems as though we may have fewer significant hits when using our combined model.  That doesn't seem right, I would've expected to see a skew towards significance in the combined model, since we're more accurately separating our groups. Let's come back to this later.  
+The p-value distributions look very similar when compared directly. It seems as though we may have fewer significant hits when using our combined model. Just for the heck of it, let's plot our p-value distributions without fdr correction as well.
+
+```{r}
+tT.treatment.noAdj <- topTable(efit, adjust = "none", number = Inf)
+
+p <- ggplot(tT.treatment.noAdj, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 0.01) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution for Treatment \n When Modeling Treatment Only")
+
+tT.combined.noAdj <- topTable(efit.combined, coef = 3, adjust = "none", number = Inf)
+
+p <- ggplot(tT.combined.noAdj, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 0.01) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution for Treatment \n When Modeling Treatment and Time")
+```
+
+Without our fdr correction, we have far more significant hits, as expected, and still see a slight skew towards non-significance when looking at our combined model.  
 
 ## 5.2 Test the null hypothesis
 
 >*Explain in English what you are modeling with this interaction term (what does it represent?).*
+
+When examining the treatment term in this model, we are looking at the difference between our intercepts. 
+When examining just the time term in this model, we are looking at the difference between the slope of the control group and zero.  
+With the interaction term, I am modeling the difference in the slopes of the linear regression fits we have made.  It represents how the two treatment groups are different with respect to time.  
+
 >*For how many probes is the interaction effect significant at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
 
 ```{r}
@@ -851,9 +869,9 @@ With this interaction terms, we are modeling both the slope and intercept of bot
 
 ## 5.3 Plot a few probes where the interaction does and does not matter 
 
+# STILL NEED TO DO THIS
 
-
-# Microarray Analysis
+# 6 Microarray Analysis
 
 ## 6.0 Download Data
 
@@ -1157,7 +1175,7 @@ Okay, so we've got 5705 hits out of 10928, that's not fantastic, but could be wo
 Let's pull out our answers and clean up the table.  I'm deliberately not saving the probes without gene hits, as it was unclear in the homework.
 ```{r}
 yeast.genes %<>% 
-	select(-AveExpr, -B)
+	dplyr::select(-AveExpr, -B)
 colnames(yeast.genes) <- c("log.fc", "test.stat", "p.value", "q.value", "probe.id", "gene.id")
 write_tsv(yeast.genes, "limma.microarray.results.tsv")
 ```
@@ -1197,7 +1215,7 @@ Here we only get 732 differentially expressed genes. Not too shabby. Let's save 
 tT.yeast.cutoff$probeID <- rownames(tT.yeast.cutoff)
 yeast.DE.genes <- inner_join(tT.yeast.cutoff, gene.id.hits, by = "probeID") %>% tbl_df()
 yeast.DE.genes %<>% 
-	select(-AveExpr, -B)
+	dplyr::select(-AveExpr, -B)
 colnames(yeast.DE.genes) <- c("log.fc", "test.stat", "p.value", "q.value", "probe.id", "gene.id")
 write_tsv(yeast.DE.genes, "limma.microarray.results.tsv")
 ```

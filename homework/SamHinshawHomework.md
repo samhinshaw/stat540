@@ -3,17 +3,19 @@ Sam Hinshaw
 
 
 
-Please view the HTML version of this document, not the GitHub rendering of the `.md` file for proper Table of Contents. 
+
+Note to Graders:  
+Please view the HTML version of this document, not the GitHub rendering of the `.md` file for proper Table of Contents.  
+If for some reason the `htmlpreview.github.io/?...` version of this document is not working, please download the HTML file and view it in your favorite web browser. 
 
 # 0 Setup
 
 ```r
 # library(BiocInstaller) # or source("https://bioconductor.org/biocLite.R")
+
 suppressPackageStartupMessages({
 	library(limma) # biocLite("limma")
 	library(edgeR) # biocLite("edgeR")
-	# library(DESeq2) # biocLite("DESeq2")
-	# library(biomaRt)
 	library(yeast2.db) # biocLite("yeast2.db")
 	library(hgu133plus2.db) # biocLite("hgu133plus2.db")
 	library(magrittr)
@@ -29,9 +31,13 @@ suppressPackageStartupMessages({
 	library(viridis)
 	library(VennDiagram)
 	library(qvalue) #biocLite("qvalue")
-	library(dplyr)
 	library(cowplot)
 	library(GGally)
+	library(dplyr)
+	
+	## Unused Packages
+	# library(DESeq2) # biocLite("DESeq2")
+	# library(biomaRt)
 })
 ```
 
@@ -71,7 +77,7 @@ See [Makefile](./Makefile) in this directory. Contents pasted here:
 all: homework
 
 clean: 
-	rm -rf SamHinshawHomework.md SamHinshawHomework.html data_fixed.txt design_fixed.txt
+	rm -rf SamHinshawHomework.md SamHinshawHomework.html data_fixed.txt design_fixed.txt yeast_counts_fixed.tsv
 
 data: 
 	curl -o data.txt.gz 'http://stat540-ubc.github.io/homework/assignment/homework_data/NHBE_transcriptome_data.txt.gz?raw=true'
@@ -79,23 +85,37 @@ data:
 
 design: 
 	curl -o design.txt 'http://stat540-ubc.github.io/homework/assignment/homework_data/NHBE_design.txt?raw=true'
+	
+yeast: 
+	curl -o yeast.tsv 'http://stat540-ubc.github.io/homework/assignment/homework_data/GSE37599-data.tsv?raw=true'
+	curl -o yeast_counts.tsv 'http://stat540-ubc.github.io/homework/assignment/homework_data/stampy.deep.counts.tsv?raw=true'
+	curl -o yeast_counts_low.tsv 'http://stat540-ubc.github.io/homework/assignment/homework_data/stampy.low.counts.tsv?raw=true'
 
-gitignore: data.txt.gz design.txt data.txt
+gitignore: data.txt.gz design.txt data.txt yeast.tsv
 	grep -q -F 'data.txt' ../.gitignore || echo 'data.txt' >> ../.gitignore
 	grep -q -F 'data.txt.gz' ../.gitignore || echo 'data.txt.gz' >> ../.gitignore
 	grep -q -F 'design.txt' ../.gitignore || echo 'design.txt' >> ../.gitignore
 	grep -q -F 'design_fixed.txt' ../.gitignore || echo 'design_fixed.txt' >> ../.gitignore
 	grep -q -F 'data_fixed.txt' ../.gitignore || echo 'data_fixed.txt' >> ../.gitignore
+	grep -q -F 'yeast.tsv' ../.gitignore || echo 'yeast.tsv' >> ../.gitignore
 
 data_fixed: data.txt
 	cp data.txt data_fixed.txt
 	sed -i -e 's/^"GSE10718_Biomat_1"/"ProbeID"	"GSE10718_Biomat_1"/' data_fixed.txt
-	
+
 design_fixed: design.txt
 	cp design.txt design_fixed.txt
 	sed -i -e 's/^"ExternalID"/"InternalID"	"ExternalID"/' design_fixed.txt
-	
-homework:  SamHinshawHomework.Rmd gitignore data_fixed design_fixed
+
+counts_fixed: yeast_counts.tsv
+	cp yeast_counts.tsv yeast_counts_fixed.tsv
+	sed -i -e 's/^""/"gene"/' yeast_counts_fixed.tsv
+
+low_counts_fixed: yeast_counts_low.tsv
+	cp yeast_counts_low.tsv yeast_counts_low_fixed.tsv
+	sed -i -e 's/^""/"gene"/' yeast_counts_low_fixed.tsv
+
+homework:  SamHinshawHomework.Rmd gitignore data_fixed design_fixed counts_fixed
 	Rscript -e "rmarkdown::render('SamHinshawHomework.Rmd')"
 	
 ```
@@ -106,6 +126,8 @@ Before we do anything, let's see what's what in our experiment, [GSE10718](http:
 <blockquote>
 Gene expression patterns were assessed in normal human bronchial epithelial (NHBE) cells exposed to cigarette smoke (CS) from a typical "full flavor" American brand of cigarettes in order to develop a better understanding of the genomic impact of tobacco exposure, which can ultimately define biomarkers that discriminate tobacco-related effects and outcomes in a clinical setting. NHBE cells were treated with CS for 15 minutes and alterations to the transcriptome assessed at 1,2,4 and 24 hours post-CS-exposure using high-density oligonucleotide microarrays.
 </blockquote>
+
+>*Please load and inspect the data and the meta-data. Fiddle with factor levels and do any other light cleaning you deem necessary.*  
 
 ### Import Data
 
@@ -270,7 +292,9 @@ glimpse(design)
 ## $ time       (chr) "24_h", "1_h", "1_h", "1_h", "4_h", "4_h", "4_h", "...
 ```
 
-### Inspect Data
+### Inspect Data  
+>*How many genes are in our data? How many samples?*  
+>*Check the breakdown for treatment and time. Do you think it’s a good experiment design?*  
 
 There we go! So we've got 23 samples. How many different treatment groups, and how many different timepoints?
 
@@ -338,7 +362,9 @@ nrow(data)
 ## [1] 22737
 ```
 
-22,737 probes.  Do we know any microarrays that have exactly that many genes?  Fortunately, we don't need to wonder. This study, [GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718) used [GPL570](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL570), the well known Affymetrix HG U133+ 2.0 Array. Later we can use biomaRt to convert our probeIDs to ensembl IDs (or another equivalent), given the platform information. 
+22,737 probes.  Do we know any microarrays that have exactly that many genes?  Fortunately, we don't need to wonder. This study, [GSE10718](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE10718) used [GPL570](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL570), the well known Affymetrix HG U133+ 2.0 Array. Later we can convert our probeIDs to ensembl IDs (or another equivalent), given the platform information. 
+
+I'd say this is a decent experimental design overall.  It really depends on what the experimenters wanted to know.  Personally, I would've wanted to reduce the number of timepoints to increase my biological replicates at any given timepoint.  Biologically speaking, I am not sure the 1 hour timepoint is all that useful.  Still, 3 replicates at each timepoint (minus one for the CS_1h group) isn't too bad.  
 
 ## 1.2 Basic Data Manipulation
 Before we continue, let's create a new column in our dataset that holds our time post-treatment as hours.
@@ -372,73 +398,7 @@ design$time <- as.factor(design$time)
 
 ### Intensity Distributions
 
-Let's get biomaRt out of the way so we can move on.  
-
-```r
-# ensembl <- useMart("ensembl") # set up biomaRt to use the ensembl database
-# datasets <- listDatasets(ensembl) # store our datasets so we can see which to use
-# ensembl <- useDataset("hsapiens_gene_ensembl", mart = ensembl) # use the human data set!
-# filters <- listFilters(ensembl) # find what filters we can use and cross fingers that it's here
-# attributes <- listAttributes(ensembl) # ditto with the attributes
-# affy_probe_IDs <- getBM(attributes = c("ensembl_gene_id", "affy_hg_u133_plus_2"), 
-# 						filters = "affy_hg_u133_plus_2", 
-# 						values = data$ProbeID, 
-# 						mart = ensembl, 
-# 						uniqueRows = TRUE
-# 						) # query the probeIDs
-# head(affy_probe_IDs)
-# colnames(affy_probe_IDs) <- c("ensembl_gene_id", "ProbeID")
-# merged.data <- merge(data, affy_probe_IDs, by = base::intersect(affy_probe_IDs$ProbeID, data$ProbeID), 
-# 					 all.y = TRUE, all.x = FALSE, 
-# 					 by.x = by, by.y = by)
-# 
-# joined_probeIDs <- data$ProbeID
-# rownames(data) <- data$ProbeID
-# glimpse(data)
-# 
-# affy_probe_IDs_hgnc <- getBM(attributes = c("hgnc_symbol", "affy_hg_u133_plus_2"), 
-# 							 filters = "affy_hg_u133_plus_2", 
-# 							 values = data$ProbeID, 
-# 							 uniqueRows = TRUE,
-# 							 mart = ensembl
-# 							 ) # query the probeIDs
-# colnames(affy_probe_IDs_hgnc) <- c("hgnc_symbol", "ProbeID")
-```
-
-
-
-```r
-# affy.gene.sybmols <- mget(data$ProbeID, hgu133plus2SYMBOL)
-# # affy.gene.ensembl <- mget(data$ProbeID, hgu133plus2ENSEMBL)
-# length(unique(affy.gene.sybmols))
-# length(affy.gene.sybmols)
-# 
-# probe.symbols <- data.frame(
-# 	"ProbeID" = names(affy.gene.sybmols),
-# 	"geneSymbol" = unlist(affy.gene.sybmols), 
-# 	stringsAsFactors = FALSE
-# ) %>% tbl_df()
-# 
-# probe.symbols %<>% 
-# 	dplyr::filter(!is.na(geneSymbol))
-
-# 
-# probe.geneID <- data.frame(
-# 	"ProbeID" = names(affy.gene.ensembl),
-# 	"geneID" = unlist(affy.gene.ensembl), 
-# 	stringsAsFactors = FALSE
-# ) %>% tbl_df()
-# 
-# probe.geneID %<>% 
-# 	dplyr::filter(!is.na(geneID))
-# 
-# probes.symbols.IDs <- inner_join(probe.symbols, probe.geneID, by = "probeID")
-
-# data <- right_join(data, probe.symbols, by = "ProbeID")
-# data.merged <- inner_join(data.merged, probe.geneID, by = "ProbeID")
-```
-
-Now we can `gather()` our data for easy plotting, and even join our design data as well. 
+Let's `gather()` our data for easy plotting, and even join our design data as well. 
 
 ```r
 gathered_data <- data %>% 
@@ -508,6 +468,40 @@ p + geom_density(aes(fill = Treatment)) +
 
 ![](SamHinshawHomework_files/figure-html/intensity plot faceted Treatment-coded-1.png)
 
+These look like they've been quantile-normalized, shall we overlay them to check?
+
+```r
+ggplot(data) +
+	geom_density(aes(x = GSE10718_Biomat_1)) + 
+	geom_density(aes(x = GSE10718_Biomat_2)) + 
+	geom_density(aes(x = GSE10718_Biomat_3)) + 
+	geom_density(aes(x = GSE10718_Biomat_4)) + 
+	geom_density(aes(x = GSE10718_Biomat_5)) + 
+	geom_density(aes(x = GSE10718_Biomat_6)) + 
+	geom_density(aes(x = GSE10718_Biomat_7)) + 
+	geom_density(aes(x = GSE10718_Biomat_8)) + 
+	geom_density(aes(x = GSE10718_Biomat_9)) + 
+	geom_density(aes(x = GSE10718_Biomat_10)) + 
+	geom_density(aes(x = GSE10718_Biomat_11)) + 
+	geom_density(aes(x = GSE10718_Biomat_12)) + 
+	geom_density(aes(x = GSE10718_Biomat_13)) + 
+	geom_density(aes(x = GSE10718_Biomat_14)) + 
+	geom_density(aes(x = GSE10718_Biomat_15)) + 
+	geom_density(aes(x = GSE10718_Biomat_16)) + 
+	geom_density(aes(x = GSE10718_Biomat_17)) + 
+	geom_density(aes(x = GSE10718_Biomat_19)) + 
+	geom_density(aes(x = GSE10718_Biomat_21)) + 
+	geom_density(aes(x = GSE10718_Biomat_20)) + 
+	geom_density(aes(x = GSE10718_Biomat_22)) + 
+	geom_density(aes(x = GSE10718_Biomat_23)) + 
+	xlab("log2 intensity") +
+    ggtitle("Log2-Intensities for All Samples in GSE10718")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-1-1.png)
+
+Perhaps not, but they look very close!
+
 ### Single Probe Intensity
 
 As per the homework, let's plot the gene expression data for a single probe. Let's pick one at pseudo-random!
@@ -531,17 +525,20 @@ singleprobe <- gathered_data %>%
 
 ```r
 ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) + 
-	geom_bar(stat = "identity") +
-	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+	geom_bar(stat = "identity") + ylab("log2 intensity") +
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	ggtitle("Intensity for Probe \"231836_at\" in Each Sample")
 ```
 
 ![](SamHinshawHomework_files/figure-html/plot single probe-1.png)
 
 Okay, so we see we've got pretty similar intensities throughout the samples.  But let's group them anyways! First by treatment.
+I could facet here, but it would just make comparisons harder. 
 
 ```r
 ggplot(data = singleprobe, aes(y = intensity, x = Treatment)) + 
-	geom_bar(stat = "identity", width = 0.5)
+	geom_bar(stat = "identity", width = 0.5) + ylab("log2 intensity") +
+	ggtitle("Intensity for Probe \"231836_at\" in Each Treatment Group")
 ```
 
 ![](SamHinshawHomework_files/figure-html/plot single probe treatments-1.png)
@@ -550,10 +547,22 @@ ggplot(data = singleprobe, aes(y = intensity, x = Treatment)) +
 
 ```r
 ggplot(data = singleprobe, aes(y = intensity, x = time)) + 
-	geom_bar(stat = "identity", width = 0.5)
+	geom_bar(stat = "identity", width = 0.5) + ylab("log2 intensity")
 ```
 
 ![](SamHinshawHomework_files/figure-html/plot single probe times-1.png)
+
+```r
+	ggtitle("Intensity for Probe \"231836_at\" in Each Time Group")
+```
+
+```
+## $title
+## [1] "Intensity for Probe \"231836_at\" in Each Time Group"
+## 
+## attr(,"class")
+## [1] "labels"
+```
 
 Ah-hah! That's rather interesting...
 Let's do all permutations of combinations. 
@@ -568,7 +577,8 @@ And now to plot...
 
 ```r
 ggplot(data = singleprobe, aes(y = intensity, x = perm)) + 
-	geom_bar(stat = "identity", width = 0.5) +
+	geom_bar(stat = "identity", width = 0.5) + xlab("Experimental Group (Treatment and Time)") +
+	ylab("log2 intensity") + ggtitle("Intensity for Probe \"231836_at\" \n in Each Experimental Group") +
 	theme(axis.text.x = element_text(angle = 65, hjust = 1))
 ```
 
@@ -598,7 +608,8 @@ singleprobe %<>%
 ggplot(data = singleprobe, aes(y = intensity, x = ExternalID)) + 
 	geom_bar(stat = "identity", aes(fill = perm)) +
 	scale_fill_manual(values = perm_palette) + labs(fill = "Conditions") +
-	theme(axis.text.x = element_text(angle = 65, hjust = 1))
+	theme(axis.text.x = element_text(angle = 65, hjust = 1)) +
+	xlab("Sample") + ylab("log2 intensity") + ggtitle("Intensity for Probe \"231836_at\" in Each Sample")
 ```
 
 ![](SamHinshawHomework_files/figure-html/plot color coded-1.png)
@@ -610,6 +621,7 @@ Moving on, let's start looking at our data quality, not just visualizing it.
 
 ## 2.1 Heatmaps
 
+>*Create the following sample-sample correlation matrices.*
 
 ```r
 datacor <- data %>% 
@@ -664,8 +676,9 @@ joined_corr %<>%
 ## vector, coercing into character vector
 ```
 
+>*Order the samples by time; within each time group, sort on the other factor, i.e., agent (treatment).*
+
 ```r
-## Rearrange & reorder by time & then treatment
 by_time <- joined_corr %>% 
 	arrange(-hours, Treatment)
 by_time$factororder <- 1:nrow(by_time)
@@ -676,7 +689,11 @@ by_time %<>%
 by_time$factororder2 <- 1:nrow(by_time)
 by_time %<>% 
 	mutate(qualitative2 = reorder(qualitative2, factororder2, max))
-## Rearrange & reorder by treatment & then time
+```
+
+>*Order the samples by agent; and within each agent group, sort by time.*
+
+```r
 by_treatment <- joined_corr %>% 
 	arrange(Treatment, -hours)
 by_treatment$factororder <- 1:nrow(by_treatment)
@@ -704,7 +721,7 @@ p <- ggplot(joined_corr, aes(x = qualitative2, y = qualitative, fill = value)) +
 p
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-5-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-7-1.png)
 
 ```r
 save_plot("heatmap.svg", p, base_height = 7, base_aspect_ratio = 1.14)
@@ -714,7 +731,7 @@ ggplot(by_time, aes(x = qualitative2, y = qualitative, fill = value)) +
 	scale_fill_gradientn(colors = tilegradient)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-5-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-7-2.png)
 
 ```r
 ggplot(by_treatment, aes(x = qualitative2, y = qualitative, fill = value)) + 
@@ -723,12 +740,32 @@ ggplot(by_treatment, aes(x = qualitative2, y = qualitative, fill = value)) +
 	scale_fill_gradientn(colors = tilegradient)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-5-3.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-7-3.png)
+
+We can also do a quick histogram of our correlations to check our general distribution.  
+
+```r
+ggplot(joined_corr, aes(x = value)) + geom_histogram(binwidth = 0.002) + 
+	xlab("Correlation") + ylab("Frequency") +
+	ggtitle("Correlation Distribution")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-8-1.png)
+
+Fantastic, barely anything under 0.9!
+
+>*Interpret your results. What does the sample correlation matrix tell us about the overall impact of time and agent?*
+This has told us that "GSM270874" or "GSE10718-Biomat-10" seems to be an outlier, and no significant batch effects are noticeable.  
 
 ## 2.2 Outliers
 
-Okay. That's an absolutely horrendous amount of code just to reorder a damn heatmap. I'm never doing that again, I'll stick with my unordered heatmap, which told me what I needed to know. "GSM270874" or "GSE10718-Biomat-10" is an outlier. No significant batch effects noticeable. 
+>*Comment on the potential presence of outliers (if any) based on the sample correlation matrices created in Q2a.*
 
+See above. 
+
+>*Try to go beyond merely eyeballing??, and make a quantitative statement about presence of an outlier: e.g., quantify for each sample, whether it “sticks out” compared to the other samples.*
+
+Let's try to quantify our outliers. We should only really be worried once we start to get under 0.9 correlation, so let's check for that.
 
 ```r
 outliers <- joined_corr %>% 
@@ -749,77 +786,19 @@ outliers %>%
 ## 1 0.8976647
 ```
 
-Okay, looks like an outlier, but how can we be sure? What's the average correlation?
+Okay, looks like an outlier, as it's mean correlation with everything except itself is under 0.9.  It's not too bad though, we could probably leave it in. 
 
-```r
-joined_corr %>% 
-	dplyr::filter(value != 1.0) %>% 
-	group_by(InternalID) %>% 
-	summarize(MeanCorr = mean(value)) %>% 
-	arrange(-MeanCorr) %>% 
-	kable("markdown")
-```
+>*If any sample does “stick out” from the previous step, examine it in the context of its experimental group (e.g., given a sample that is least similar to all other samples: does it correlate with samples treated with same agent better than other samples treated with a different agent?)*
 
-
-
-|InternalID         |  MeanCorr|
-|:------------------|---------:|
-|GSE10718_Biomat_15 | 0.9173906|
-|GSE10718_Biomat_16 | 0.9165708|
-|GSE10718_Biomat_17 | 0.9148903|
-|GSE10718_Biomat_13 | 0.9145962|
-|GSE10718_Biomat_6  | 0.9143724|
-|GSE10718_Biomat_14 | 0.9139143|
-|GSE10718_Biomat_19 | 0.9128870|
-|GSE10718_Biomat_3  | 0.9128683|
-|GSE10718_Biomat_1  | 0.9116194|
-|GSE10718_Biomat_8  | 0.9099998|
-|GSE10718_Biomat_2  | 0.9097330|
-|GSE10718_Biomat_11 | 0.9094215|
-|GSE10718_Biomat_7  | 0.9084779|
-|GSE10718_Biomat_20 | 0.9083407|
-|GSE10718_Biomat_12 | 0.9076176|
-|GSE10718_Biomat_22 | 0.9070942|
-|GSE10718_Biomat_9  | 0.9051258|
-|GSE10718_Biomat_5  | 0.9043402|
-|GSE10718_Biomat_24 | 0.9039464|
-|GSE10718_Biomat_21 | 0.9036567|
-|GSE10718_Biomat_4  | 0.9028298|
-|GSE10718_Biomat_23 | 0.9022724|
-|GSE10718_Biomat_10 | 0.8976647|
-
-```r
-## What about within groups?
-
-joined_corr %>% 
-	dplyr::filter(value != 1.0) %>% 
-	group_by(Treatment, hours) %>% 
-	summarize(MeanCorr = mean(value)) %>% 
-	arrange(-MeanCorr) %>% 
-	kable("markdown")
-```
-
-
-
-|Treatment       | hours|  MeanCorr|
-|:---------------|-----:|---------:|
-|cigarette_smoke |     1| 0.9157305|
-|cigarette_smoke |     2| 0.9082948|
-|cigarette_smoke |    24| 0.9071808|
-|cigarette_smoke |     4| 0.9044377|
-|control         |     4| 0.9153004|
-|control         |    24| 0.9114069|
-|control         |     2| 0.9078678|
-|control         |     1| 0.9049013|
-
-Lastly, how does this outlier sample compare to specific treatments (This is a 1hr control sample). For this I'll filter out correlation with itself.
+Let's check one more thing though--let's see which groups it correlates most with.  
+Specifically, how does this outlier sample compare to specific treatments (This is a 1hr control sample). Again I'll filter out correlation with itself.
 
 ```r
 outliers %>% 
 	dplyr::filter(Var2 != "GSE10718_Biomat_10") %>% 
 	group_by(Treatment2, hours2) %>% 
-	summarize(MeanCorr = mean(value)) %>% 
-	arrange(-MeanCorr) %>% 
+	summarize(MeanCorr = mean(value)) %>% tbl_df() %>% 
+	arrange(-MeanCorr) %>%
 	kable("markdown")
 ```
 
@@ -827,22 +806,21 @@ outliers %>%
 
 |Treatment2      | hours2|  MeanCorr|
 |:---------------|------:|---------:|
-|cigarette_smoke |      1| 0.9031898|
-|cigarette_smoke |      2| 0.8953648|
-|cigarette_smoke |      4| 0.8910155|
-|cigarette_smoke |     24| 0.8889794|
 |control         |      1| 0.9036029|
+|cigarette_smoke |      1| 0.9031898|
 |control         |     24| 0.9020827|
 |control         |      4| 0.9017017|
 |control         |      2| 0.8992022|
+|cigarette_smoke |      2| 0.8953648|
+|cigarette_smoke |      4| 0.8910155|
+|cigarette_smoke |     24| 0.8889794|
 
-At last, something meaningful!! This sample correlates MOST those samples within its own group, but also highly with the 1hr cigarette smoke group.  
-
-Quantitatively, it would help to look at mean standard deviation.  
+At last, something meaningful!! This sample correlates MOST those samples within its own group, but also highly with the 1hr cigarette smoke group (moreso than the other timepoints in its treatment group).  This may be some cause for concern, but I will leave it in the analysis for now.  
 
 # 3 Differential Expression with Respect to Treatment
 
 ## 3.1 Linear Model
+>*Fit a linear model, modeling expression level of each probe using treatment as a single covariate.*
 
 ```r
 rownames(data) <- data$ProbeID
@@ -917,7 +895,9 @@ results <- decideTests(efit)
 vennDiagram(results)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-10-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-12-1.png)
+
+>*Write out in English and as an equation the model you are using to assess differential expression. In the context of that model, what statistical test are you performing?*
 
 In this model, we have ignored time as a covariate, comparing samples against each other just based on treatment group.  In equation terms...
 $$Y = X\alpha + \epsilon$$
@@ -966,6 +946,7 @@ epsilon = the error of our samples
 
 If that equation isn't formatting correctly, make sure you're viewing the HTML version, not the .md version github has formatted. 
 
+In the context of the statistical model, we are performing a t test on each gene, with moderated variance (via the empirical Bayes moderation).
 
 ## 3.2 Hits in Linear Model
 
@@ -1001,15 +982,7 @@ nrow(tT.treatment)
 tT.treatment$ProbeID <- rownames(tT.treatment)
 tT.treatment.sig.fdr <- topTable(efit, adjust = "fdr", number = Inf, 
 								 p.value = 0.05, sort.by = "p")
-## What is my FDR?
-head(tT.treatment.sig.fdr$adj.P.Val, n = 50) %>% sum()
-```
 
-```
-## [1] 0.02547832
-```
-
-```r
 tT.treatment.sig.fdr$ProbeID <- rownames(tT.treatment.sig.fdr)
 nrow(tT.treatment.sig.fdr)
 ```
@@ -1050,24 +1023,35 @@ p + geom_histogram(binwidth = 1e-3) +
 	ggtitle("P-Value Distribution of Significant Genes \n corrected with FDR = 0.05")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-13-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-15-1.png)
 
 Looks pretty good!
 
->*Take the top 50 probes as your “hits” and create a heatmap of their expression levels. Sort the hits by p-values and the samples by treatment.*
 
 Okay, so we've got 1238 hits, let's take the top 50 hits, and then we should go back to our data and filter by the probeIDs. 
 
 ```r
-# gathered_data2 <- data %>% 
-# 	gather("InternalID", "intensity", 2:24)
-# glimpse(gathered_data2)
-# gathered_data2 <- inner_join(gathered_data2, design, by = "InternalID")
-# glimpse(gathered_data2)
 gathered_data %<>% 
 	mutate(qualitative = paste0(Treatment, "_", as.character(hours), "_", ExternalID))
 tT.sig.fdr.filtered <- tT.treatment.sig.fdr %>% 
 	head(n = 50) %>% tbl_df()
+
+## What is my FDR?
+tT.sig.fdr.filtered$adj.P.Val %>% sum()
+```
+
+```
+## [1] 0.02547832
+```
+
+>*What is the (estimated) false discovery rate of this “hits” list? How many of these hits do we expect to be false discoveries?*
+Looks like our False Discovery Rate for these top probes is just 0.025! So the probability of having just one false hit in this list is 0.025.
+
+>*Take the top 50 probes as your “hits” and create a heatmap of their expression levels. Sort the hits by p-values and the samples by treatment.*
+
+Some reordering MAGIC!
+
+```r
 tT.sig.fdr.filtered
 ```
 
@@ -1102,8 +1086,6 @@ nrow(topHits)
 
 ```r
 topHits <- inner_join(topHits, tT.sig.fdr.filtered, by = "ProbeID")
-# topHits <- semi_join(topHits, affy_probe_IDs_hgnc, by = "ProbeID")
-
 glimpse(topHits)
 ```
 
@@ -1128,6 +1110,7 @@ glimpse(topHits)
 ```
 
 ```r
+# topHits <- semi_join(topHits, affy_probe_IDs_hgnc, by = "ProbeID")
 topHits$qualitative %<>% as.factor()
 topHits %<>% 
 	arrange(Treatment, hours)
@@ -1158,9 +1141,9 @@ ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) +
 	ylab("Gene Symbol (p-value)")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-15-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-18-1.png)
 
-Let's also sort just on time
+Let's also sort just on time... for curiosity. 
 
 ```r
 topHits %<>% 
@@ -1175,7 +1158,7 @@ ggplot(topHits, aes(x = qualitative, y = hgnc_p.value, fill = intensity)) +
 	ylab("Gene Symbol (p-value)")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-16-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-19-1.png)
 
 >*What is the (estimated) false discovery rate of this “hits” list? How many of these hits do we expect to be false discoveries?*
 
@@ -1258,7 +1241,7 @@ results.time <- decideTests(efit.time)
 vennDiagram(results.time)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-17-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-20-1.png)
 
 Interesting so far, let's continue.
 
@@ -1307,11 +1290,11 @@ p + geom_histogram(binwidth = 1e-3) +
 	ggtitle("P-Value Distribution of Significant Genes") + xlim(0, 0.05)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-18-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-21-1.png)
+
+That's actually not so meaningful since we've filtered on all p-values under 0.001
 
 ```r
-## That's actually not so meaningful since we've filtered on all p-values under 0.001
-
 # topTable.time$ProbeID <- rownames(topTable.time)
 tT.time.sig.fdr <- topTable(efit.time, adjust = "fdr", number = Inf, p.value = 0.05)
 ```
@@ -1377,7 +1360,7 @@ p + geom_histogram(binwidth = 1e-3) +
 	ggtitle("P-Value Distribution of Significant Genes \n corrected with FDR = 0.05")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-18-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-22-1.png)
 
 Alright, that's looking much better. We've got 958 hits with p-value under 0.001, and 1451 hits with FDR and p-value under 0.05.  
 
@@ -1522,7 +1505,7 @@ results.combined <- decideTests(efit.combined)
 vennDiagram(results.combined)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-19-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-1.png)
 
 Woohoo! Now I've effectively modeled all 3 biological scenarios.
 
@@ -1626,27 +1609,57 @@ tT.treatment.fdr <- topTable(efit, adjust = "fdr", number = Inf)
 p <- ggplot(tT.treatment.fdr, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 0.01) + 
 	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
-	ggtitle("P-Value Distribution for Treatment Model")
+	ggtitle("P-Value Distribution for Treatment \n When Modeling Treatment Only")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-1.png)
 
 ```r
-tT.combined.fdr <- topTable(efit.combined, coef = 1, adjust = "fdr", number = Inf)
+tT.combined.fdr <- topTable(efit.combined, coef = 3, adjust = "fdr", number = Inf)
 
 p <- ggplot(tT.combined.fdr, aes(x = adj.P.Val))
 p + geom_histogram(binwidth = 0.01) + 
 	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
-	ggtitle("P-Value Distribution for Combined Model")
+	ggtitle("P-Value Distribution for Treatment \n When Modeling Treatment and Time")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-23-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-2.png)
 
-The p-value distributions look very similar when compared directly, but it seems as though we may have fewer significant hits when using our combined model.  That doesn't seem right, I would've expected to see a skew towards significance in the combined model, since we're more accurately separating our groups. Let's come back to this later.  
+The p-value distributions look very similar when compared directly. It seems as though we may have fewer significant hits when using our combined model. Just for the heck of it, let's plot our p-value distributions without fdr correction as well.
+
+
+```r
+tT.treatment.noAdj <- topTable(efit, adjust = "none", number = Inf)
+
+p <- ggplot(tT.treatment.noAdj, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 0.01) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution for Treatment \n When Modeling Treatment Only")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-28-1.png)
+
+```r
+tT.combined.noAdj <- topTable(efit.combined, coef = 3, adjust = "none", number = Inf)
+
+p <- ggplot(tT.combined.noAdj, aes(x = adj.P.Val))
+p + geom_histogram(binwidth = 0.01) + 
+	scale_fill_manual(values = timepoints) + xlab("P-Values") + ylab("Frequency") + 
+	ggtitle("P-Value Distribution for Treatment \n When Modeling Treatment and Time")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-28-2.png)
+
+Without our fdr correction, we have far more significant hits, as expected, and still see a slight skew towards non-significance when looking at our combined model.  
 
 ## 5.2 Test the null hypothesis
 
 >*Explain in English what you are modeling with this interaction term (what does it represent?).*
+
+When examining the treatment term in this model, we are looking at the difference between our intercepts. 
+When examining just the time term in this model, we are looking at the difference between the slope of the control group and zero.  
+With the interaction term, I am modeling the difference in the slopes of the linear regression fits we have made.  It represents how the two treatment groups are different with respect to time.  
+
 >*For how many probes is the interaction effect significant at the unadjusted p-value 1e-3, and at FDR 0.05 level?*
 
 
@@ -1726,9 +1739,9 @@ With this interaction terms, we are modeling both the slope and intercept of bot
 
 ## 5.3 Plot a few probes where the interaction does and does not matter 
 
+# STILL NEED TO DO THIS
 
-
-# Microarray Analysis
+# 6 Microarray Analysis
 
 ## 6.0 Download Data
 
@@ -1793,7 +1806,7 @@ yeast %>% dplyr::select(-probeID) %>%
 	)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-27-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-32-1.png)
 
 Beautiful! I'm glad I found the `ggpairs()` function, that's made my life a lot easier.  
 We can see easily now, that we've got correlation between two groups:  
@@ -1872,7 +1885,7 @@ ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) +
 	scale_fill_gradientn(colors = heatmapcolors)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-29-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-1.png)
 
 Okay, now let's rearrange based on what we decided from our pairwise sample-sample scatterplots and what looks like some obvious clustering in our first heatmap.
 
@@ -1886,7 +1899,7 @@ ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) +
 	scale_fill_gradientn(colors = heatmapcolors)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-30-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-35-1.png)
 
 This makes it seem rather apparent that b1, c1, and c3 are part of one group, and c2, b3, and b2 are part of another group.  Either that or there are some serious flaws with these microarrays.  
 
@@ -1902,7 +1915,7 @@ gath.yeast %>%
 	ylab("probeID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-31-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-36-1.png)
 
 And now with our samples sorted into what we believe to be the true groups.  
 
@@ -1919,7 +1932,7 @@ gath.yeast %>%
 	ylab("probeID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-32-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-37-1.png)
 
 Finally, how about PCA? We can use `FactoMineR::PCA` to get a simple plot, or use `stats::prcomp` for an object we can pipe into `ggplot2`.  
 
@@ -1929,6 +1942,11 @@ rownames(noProbes.yeast) <- noProbes.yeast$probeID
 noProbes.yeast$probeID <- NULL
 
 fPCA <- FactoMineR::PCA(noProbes.yeast, scale.unit = FALSE)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-38-1.png)![](SamHinshawHomework_files/figure-html/unnamed-chunk-38-2.png)
+
+```r
 sPCA <- stats::prcomp(noProbes.yeast, scale. = FALSE)
 (PCA.summary <- summary(sPCA)$importance %>% as.data.frame())
 ```
@@ -1956,7 +1974,7 @@ ggplot(PCA.rotation, aes(x = PC1, y = PC2, label = rownames(PCA.rotation))) +
 	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-39-1.png)
 
 Note that we get a different looking distribution if we scale our values. Regardless, the clustering is obvious, and our principal components are the same.  
 
@@ -1984,7 +2002,7 @@ ggplot(PCA.rotation.scaled, aes(x = PC1, y = PC2, label = rownames(PCA.rotation)
 	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-35-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-40-1.png)
 
 Finally, if we also wanted to plot our observations, we could use the `ggbiplot` package.  
 
@@ -1997,7 +2015,7 @@ g + scale_color_discrete(name = '') +
 	ggtitle("PCA Plot of Yeast Samples")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-36-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-41-1.png)
 
 Given all of these plots, we can now satisfactorally conclude that samples b1 and c2 have accidentally been swapped. Let's fix that and continue!
 
@@ -2137,7 +2155,7 @@ results.yeast <- decideTests(efit.yeast)
 vennDiagram(results.yeast)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-41-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-46-1.png)
 
 Great! Let's check out our p-value distribution before we continue though
 
@@ -2148,7 +2166,7 @@ p + geom_histogram(binwidth = 0.05) +
 	ggtitle("P-Value Distribution of Significant \n Genes with BH Correction")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-42-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-47-1.png)
 
 That looks pretty drastic, but I'm not sure it's wrong. 
 
@@ -2276,7 +2294,7 @@ Let's pull out our answers and clean up the table.  I'm deliberately not saving 
 
 ```r
 yeast.genes %<>% 
-	select(-AveExpr, -B)
+	dplyr::select(-AveExpr, -B)
 colnames(yeast.genes) <- c("log.fc", "test.stat", "p.value", "q.value", "probe.id", "gene.id")
 write_tsv(yeast.genes, "limma.microarray.results.tsv")
 ```
@@ -2314,7 +2332,7 @@ yeast.fg %>%
 	ggtitle("Intensity of Probe 1772391_at, YIL057C ")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-47-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-52-1.png)
 
 >*How many probes are identified as differentially expressed at a false discovery rate (FDR) of 1e-5?*
 
@@ -2333,7 +2351,7 @@ Here we only get 732 differentially expressed genes. Not too shabby. Let's save 
 tT.yeast.cutoff$probeID <- rownames(tT.yeast.cutoff)
 yeast.DE.genes <- inner_join(tT.yeast.cutoff, gene.id.hits, by = "probeID") %>% tbl_df()
 yeast.DE.genes %<>% 
-	select(-AveExpr, -B)
+	dplyr::select(-AveExpr, -B)
 colnames(yeast.DE.genes) <- c("log.fc", "test.stat", "p.value", "q.value", "probe.id", "gene.id")
 write_tsv(yeast.DE.genes, "limma.microarray.results.tsv")
 ```
@@ -2385,7 +2403,7 @@ ggplot(yeast.seq.cor, aes(x = Var1, y = Var2, fill = correlation)) +
 	scale_fill_gradientn(colors = tilegradient.short)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-51-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-56-1.png)
 
 ## 7.2 DEA of deep sequencing data
 
@@ -2464,7 +2482,7 @@ yeast.seq.dg <- estimateGLMTagwiseDisp(yeast.seq.dg, DM.yeast.seq)
 plotBCV(yeast.seq.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-54-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-59-1.png)
 
 
 ```r
@@ -2497,7 +2515,7 @@ tT.yeast.seq$table %>%
 plotSmear(yeast.seq.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-55-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-60-1.png)
 
 ```r
 yeast.test.deep <- exactTest(yeast.seq.dg)
@@ -2507,7 +2525,7 @@ ggplot(yeast.test.deep$table, aes(x = logCPM, y = logFC, color = threshold)) +
 	geom_point() + scale_color_manual(name = "P Value < 0.05", values = c("#56B4E9", "#FF661D"))
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-55-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-60-2.png)
 
 Unfortunately, as you can see, the negative binomial method employed by edgeR (and DESeq) does not fit yeast data well, due to the nature of yeast genes.  Therefore, this method is likely not the best for determining hits.  If there is time, I will work on limma-voom in question 9.
 
@@ -2600,7 +2618,7 @@ yeast.seq.low.dg <- estimateGLMTagwiseDisp(yeast.seq.low.dg, DM.yeast.seq)
 plotBCV(yeast.seq.low.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-59-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-64-1.png)
 
 
 ```r
@@ -2633,7 +2651,7 @@ tT.yeast.seq.low$table %>%
 plotSmear(yeast.seq.low.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-60-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-65-1.png)
 
 ```r
 yeast.test.low <- exactTest(yeast.seq.low.dg)
@@ -2642,7 +2660,7 @@ ggplot(yeast.test.low$table, aes(x = logCPM, y = logFC, color = threshold)) +
 	geom_point() + scale_color_manual(name = "P Value < 0.05", values = c("#56B4E9", "#FF661D"))
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-60-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-65-2.png)
 
 
 And let's write out our results as with deep sequencing!
@@ -2691,10 +2709,10 @@ draw.pairwise.venn(area1 = length(yeast.seq.overlap$a1),
 )
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-62-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-67-1.png)
 
 ```
-## (polygon[GRID.polygon.2326], polygon[GRID.polygon.2327], polygon[GRID.polygon.2328], polygon[GRID.polygon.2329], text[GRID.text.2330], text[GRID.text.2331], text[GRID.text.2332], text[GRID.text.2333])
+## (polygon[GRID.polygon.2568], polygon[GRID.polygon.2569], polygon[GRID.polygon.2570], polygon[GRID.polygon.2571], text[GRID.text.2572], text[GRID.text.2573], text[GRID.text.2574], text[GRID.text.2575])
 ```
 
 >*How many genes were identified by edgeR in both low and deep count data?*
@@ -2745,10 +2763,10 @@ draw.pairwise.venn(area1 = length(yeast.seq.overlap$a1),
 )
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-64-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-69-1.png)
 
 ```
-## (polygon[GRID.polygon.2334], polygon[GRID.polygon.2335], polygon[GRID.polygon.2336], polygon[GRID.polygon.2337], text[GRID.text.2338], text[GRID.text.2339], text[GRID.text.2340], text[GRID.text.2341], text[GRID.text.2342])
+## (polygon[GRID.polygon.2576], polygon[GRID.polygon.2577], polygon[GRID.polygon.2578], polygon[GRID.polygon.2579], text[GRID.text.2580], text[GRID.text.2581], text[GRID.text.2582], text[GRID.text.2583], text[GRID.text.2584])
 ```
 
 >*Comment on the effect of sequencing depth on the DEA results.*
@@ -2852,7 +2870,7 @@ yeast.fg.genes %>%
 	ylab("log2-scaled intensity") + xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-67-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-72-1.png)
 
 
 ```r
@@ -2866,7 +2884,7 @@ yeast.seq.low.melt %>%
 	xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-68-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-73-1.png)
 
 ### 1 gene reported as differentially expressed in only the microarray assay
 
@@ -2922,7 +2940,7 @@ yeast.fg.genes %>%
 	ylab("log2-scaled intensity") + xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-70-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-75-1.png)
 
 
 ```r
@@ -2936,7 +2954,7 @@ yeast.seq.low.melt %>%
 	xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-71-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-76-1.png)
 
 
 ### 1 gene reported as differentially expressed in only the RNA-seq assay  
@@ -2965,7 +2983,7 @@ yeast.fg.genes %>%
 	ylab("log2-scaled intensity") + xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-73-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-78-1.png)
 
 
 ```r
@@ -2979,7 +2997,7 @@ yeast.seq.low.melt %>%
 	xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-74-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-79-1.png)
 ### 1 gene reported as not differentially expressed in either assay 
 
 
@@ -3013,7 +3031,7 @@ yeast.fg.genes %>%
 	ylab("log2-scaled intensity") + xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-76-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-81-1.png)
 
 
 ```r
@@ -3027,9 +3045,9 @@ yeast.seq.low.melt %>%
 	xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-77-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-82-1.png)
 
 <center>\~Fin\~</center>
 
 ********
-This page was last updated on  Wednesday, March 16, 2016 at 10:44PM
+This page was last updated on  Thursday, March 17, 2016 at 12:09AM
