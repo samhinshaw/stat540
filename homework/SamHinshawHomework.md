@@ -1739,7 +1739,339 @@ With this interaction terms, we are modeling both the slope and intercept of bot
 
 ## 5.3 Plot a few probes where the interaction does and does not matter 
 
-# STILL NEED TO DO THIS
+Let's start with picking one probe from each group. For these purposes we will use fdr-corrected results. I will also assume that in this question we should be comparing probes in different groups from the SAME model, unlike our comparison above, "Plot the distributions of all the p-values for treatment when using both models".
+
+```r
+topTable(efit.combined, adjust = "fdr", number = Inf, p.value = 0.05) %>% head()
+```
+
+```
+##                combined         time   treatment  AveExpr         F
+## 214290_s_at  0.07394082  0.020160178  0.16551666 12.36283 156.55408
+## 202870_s_at -0.06287376 -0.026474331 -0.22069666 11.80425 133.84586
+## 208955_at   -0.05748477 -0.010642976  0.17577142 10.09237 123.82646
+## 203108_at    0.11407096 -0.033686308 -0.59479660 12.71756 101.30302
+## 218542_at   -0.05928858 -0.006882803 -0.09262906 11.21883  90.07826
+## 212281_s_at -0.04787848 -0.020071571  0.13169137 10.96036  86.82289
+##                  P.Value    adj.P.Val
+## 214290_s_at 2.659658e-14 6.047264e-10
+## 202870_s_at 1.230797e-13 1.399232e-09
+## 208955_at   2.621916e-13 1.987150e-09
+## 203108_at   1.817024e-12 1.032842e-08
+## 218542_at   5.573399e-12 2.534448e-08
+## 212281_s_at 7.903859e-12 2.782995e-08
+```
+
+As you can see by calling toptable on our combined model, our coefficients are as such:  
+1. Combined (Interaction)  
+2. Time  
+3. Treatment  
+
+
+```r
+fewProbes.treat <- topTable(efit.combined, coef = 3, adjust = "fdr", number = Inf, p.value = 0.05) # Treatment Only
+fewProbes.time <- topTable(efit.combined, coef = 2, adjust = "fdr", number = Inf, p.value = 0.05) # Time Only
+fewProbes.combined <- topTable(efit.combined, coef = 1, adjust = "fdr", number = Inf, p.value = 0.05) # Interaction
+fewProbes.treat$probeID <- rownames(fewProbes.treat)
+fewProbes.time$probeID <- rownames(fewProbes.time)
+fewProbes.combined$probeID <- rownames(fewProbes.combined)
+(fewProbes.treat %>% tbl_df())
+```
+
+```
+## Source: local data frame [768 x 7]
+## 
+##         logFC   AveExpr         t      P.Value    adj.P.Val        B
+##         (dbl)     (dbl)     (dbl)        (dbl)        (dbl)    (dbl)
+## 1   0.9042074 14.071987  8.377100 4.665235e-08 0.0004202951 8.478163
+## 2   3.0272368  6.488711  8.349103 4.923043e-08 0.0004202951 8.430397
+## 3   1.5822496 10.243140  8.287320 5.545521e-08 0.0004202951 8.324553
+## 4   1.5740991 10.598902  8.055196 8.713100e-08 0.0004351844 7.921528
+## 5  -0.7787192  9.276269 -8.007462 9.569961e-08 0.0004351844 7.837597
+## 6   1.4579813 10.909886  7.716098 1.707786e-07 0.0006471653 7.317458
+## 7   0.8574998 13.983184  7.543462 2.419893e-07 0.0006547222 7.002910
+## 8  -0.5025333 11.117630 -7.512502 2.577063e-07 0.0006547222 6.946000
+## 9   5.1742053 10.745720  7.509739 2.591591e-07 0.0006547222 6.940914
+## 10  1.9396711  7.632333  7.308486 3.913942e-07 0.0008899130 6.567173
+## ..        ...       ...       ...          ...          ...      ...
+## Variables not shown: probeID (chr)
+```
+
+```r
+(fewProbes.time %>% tbl_df())
+```
+
+```
+## Source: local data frame [790 x 7]
+## 
+##          logFC   AveExpr          t      P.Value    adj.P.Val         B
+##          (dbl)     (dbl)      (dbl)        (dbl)        (dbl)     (dbl)
+## 1  -0.08543513  7.856367 -10.325984 1.405834e-09 1.159272e-05 12.183729
+## 2   0.07652190  9.344456  10.309607 1.445084e-09 1.159272e-05 12.156698
+## 3   0.05863026  8.670837  10.275867 1.529585e-09 1.159272e-05 12.100903
+## 4  -0.03576557 14.871306  -9.490033 5.965176e-09 3.390755e-05 10.760774
+## 5   0.05056587 10.144990   9.223717 9.620838e-09 4.374980e-05 10.288454
+## 6  -0.04618689  9.045753  -9.065396 1.283596e-08 4.864186e-05 10.003190
+## 7  -0.04695334 10.391574  -8.966542 1.539227e-08 4.999630e-05  9.823365
+## 8  -0.04827710 10.057592  -8.825603 1.998417e-08 5.679750e-05  9.564691
+## 9   0.04716388 10.969131   8.579963 3.169109e-08 8.006226e-05  9.107365
+## 10 -0.05267118  9.653223  -8.170245 6.958688e-08 1.582197e-04  8.326010
+## ..         ...       ...        ...          ...          ...       ...
+## Variables not shown: probeID (chr)
+```
+
+```r
+(fewProbes.combined %>% tbl_df())
+```
+
+```
+## Source: local data frame [664 x 7]
+## 
+##          logFC   AveExpr          t      P.Value    adj.P.Val        B
+##          (dbl)     (dbl)      (dbl)        (dbl)        (dbl)    (dbl)
+## 1   0.11407096 12.717558  15.620287 7.330143e-13 1.666655e-08 18.74367
+## 2  -0.05748477 10.092374 -10.882374 5.614508e-10 4.607929e-06 12.88580
+## 3   0.09283685 10.118466  10.833280 6.079864e-10 4.607929e-06 12.81248
+## 4   0.06311515  9.928981  10.387540 1.267943e-09 7.207303e-06 12.13288
+## 5   0.07394082 12.362832  10.114885 2.009574e-09 8.302642e-06 11.70463
+## 6   0.08089615 11.269709  10.064275 2.190960e-09 8.302642e-06 11.62406
+## 7  -0.09150294 11.077258  -9.887980 2.967407e-09 9.638563e-06 11.34078
+## 8  -0.08864904 10.820741  -9.689623 4.192795e-09 1.191645e-05 11.01705
+## 9  -0.06411244 12.296795  -9.419205 6.768069e-09 1.709840e-05 10.56709
+## 10 -0.06235953 11.251135  -9.136063 1.128157e-08 2.565092e-05 10.08510
+## ..         ...       ...        ...          ...          ...      ...
+## Variables not shown: probeID (chr)
+```
+
+First let's find a case where the interaction term does NOT matter. 
+
+```r
+interaction.completely.and.utterly.meaningless.just.like.this.ridiculously.long.variable.name <- 
+	intersect(fewProbes.treat$probeID, fewProbes.time$probeID)
+
+interaction.completely.and.utterly.meaningless.just.like.this.ridiculously.long.variable.name <- 
+	intersect(interaction.completely.and.utterly.meaningless.just.like.this.ridiculously.long.variable.name, 
+			  fewProbes.combined$probeID)
+
+interaction.completely.and.utterly.meaningless.just.like.this.ridiculously.long.variable.name %>% length() ##31 possible samples common to all terms
+```
+
+```
+## [1] 31
+```
+
+```r
+set.seed(20)
+no.diff.gene <- interaction.completely.and.utterly.meaningless.just.like.this.ridiculously.long.variable.name %>% ## enough of this silly name
+	base::sample(size = 1)
+```
+
+And let's plot!
+
+```r
+diff.colors <- brewer.pal(3, "Dark2")[2:3]
+gathered_data %>% 
+	dplyr::filter(ProbeID %in% no.diff.gene) %>% 
+	group_by(Treatment, time) %>% 
+	do(mutate(., mean = mean(intensity))) %>% 
+	ggplot(aes(x = hours, y = intensity, color = Treatment)) + geom_point(shape = 1, size = 5) + 
+	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~ProbeID) +
+	stat_smooth(method = "lm") +
+	scale_color_manual(values = diff.colors) +
+	ggtitle("Intensity of a Probe Reported as Differentially \n Expressed in All In Terms of Combined Model") + 
+	ylab("log2-scaled intensity") + xlab("Time (hours)")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-1.png)
+
+First off, I will say that these lines are possibly slightly different from those fit in the `lmFit()` function.  However, `stat_smooth()` is using R's built-in `lm()` method, which is the same method that is used by `lmFit()`.  I therefore do not have any qualms using this method rather than trying to extract my lines from our fit model (efit.combined) and plotting that.  
+
+Now, we can visually see why this probe was significant in all models.  
+1. Treatment Only: Our mean intensity between groups is different, as you can see by the mean line plotted for each group.  
+2. Time Only: The slope of our control is negative, as expression of control decreases with time.  
+3. Combined: Our slopes in each group are quite different, expression decreases over time in the control group, but increases with time in the cigarette smoke group
+
+Interestingly, this means for this probe, if we modeled time alone, we would likely not get a significant hit, as our two groups may cancel out.  We could check quickly. 
+
+```r
+tT.time.sig.fdr$probeID <- rownames(tT.time.sig.fdr)
+tT.time.sig.fdr %>% 
+	dplyr::filter(probeID %in% no.diff.gene)
+```
+
+```
+## [1] logFC     AveExpr   t         P.Value   adj.P.Val B         probeID  
+## <0 rows> (or 0-length row.names)
+```
+
+Not present! If we graph it?
+
+
+```r
+gathered_data %>% 
+	dplyr::filter(ProbeID %in% no.diff.gene) %>% 
+	group_by(time) %>% 
+	do(mutate(., mean = mean(intensity))) %>% 
+	ggplot(aes(x = hours, y = intensity)) + geom_point(shape = 1, size = 5) + 
+	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~ProbeID) +
+	stat_smooth(method = "lm") +
+	scale_color_manual(values = diff.colors) +
+	ggtitle("Intensity of a Probe Reported as Differentially \n Expressed in All In Terms of Combined Model") + 
+	ylab("log2-scaled intensity") + xlab("Time (hours)")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-36-1.png)
+
+Well, we still see a slightly negative trend, but obviously not significant enough!  Cool stuff. Let's visualize one more probe where interaction doesn't matter, and then check out some where the interaction term changes things
+
+```r
+set.seed(300)
+no.diff.gene2 <- interaction.completely.and.utterly.meaningless.just.like.this.ridiculously.long.variable.name %>%
+	base::sample(size = 1)
+
+gathered_data %>% 
+	dplyr::filter(ProbeID %in% no.diff.gene2) %>% 
+	group_by(Treatment, time) %>% 
+	do(mutate(., mean = mean(intensity))) %>% 
+	ggplot(aes(x = hours, y = intensity, color = Treatment)) + geom_point(shape = 1, size = 5) + 
+	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~ProbeID) +
+	stat_smooth(method = "lm") +
+	scale_color_manual(values = diff.colors) +
+	ggtitle("Intensity of a Probe Reported as Differentially \n Expressed in All In Terms of Combined Model") + 
+	ylab("log2-scaled intensity") + xlab("Time (hours)")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-37-1.png)
+
+Interesting, a very similar scenario.  I wonder if all of the probes are like this...
+
+
+```r
+gathered_data %>% 
+	dplyr::filter(ProbeID %in% interaction.completely.and.utterly.meaningless.just.like.this.ridiculously.long.variable.name) %>% 
+	group_by(Treatment, time) %>% 
+	do(mutate(., mean = mean(intensity))) %>% 
+	ggplot(aes(x = hours, y = intensity, color = Treatment)) + geom_point(shape = 1, size = 1) + 
+	geom_point(aes(y = mean), shape = 95, size = 3) + facet_wrap(~ProbeID, ncol = 8) +
+	stat_smooth(method = "lm") +
+	scale_color_manual(values = diff.colors) +
+	ggtitle("Intensity of all Probes Reported as Differentially \n Expressed in All In Terms of Combined Model") + 
+	ylab("log2-scaled intensity") + xlab("Time (hours)")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-38-1.png)
+
+It's hard to tell for sure with such small charts, but it does seem that way.  Let's move on the probes where the interaction DOES make a difference. For this we'll find a few different probes. I wanted to make a Venn Diagram, but it's not really easy to do in R, and Venn Diagrams aren't that great of a tool anyways. 
+
+```r
+## First let's find all the probes not counted as significant by their difference in slope.  
+not.combined.treat <- setdiff(fewProbes.treat$probeID, fewProbes.combined$probeID)
+not.combined.time <- setdiff(fewProbes.time$probeID, fewProbes.combined$probeID)
+not.combined <- union(not.combined.treat, not.combined.time)
+```
+
+Now, we can find probes in a few categories. Because these genes are NOT reported as significant by the interaction term, this means for all of these probes, CS slope ~= control slope.  
+- Different group averages BUT control slope ~= 0 (sig in treatment only)  `j.treat`  
+- Different group averages AND control slope != 0 (sig in treament & time) `j.tt`  
+- Same      group averages BUT control slope != 0 (sig in time only)       `j.time`  
+
+
+```r
+j.treat <- setdiff(not.combined, fewProbes.time$probeID)
+j.time <- setdiff(not.combined, fewProbes.treat$probeID)
+j.tt <- intersect(not.combined.time, not.combined.treat)
+```
+
+
+```r
+set.seed(50)
+(j.treat.1 <- j.treat %>% 
+	base::sample(size = 1))
+```
+
+```
+## [1] "218581_at"
+```
+
+```r
+set.seed(20)
+(j.time.1 <- j.time %>% 
+	base::sample(size = 1))
+```
+
+```
+## [1] "238332_at"
+```
+
+```r
+set.seed(20)
+(j.tt.1 <- j.tt %>% 
+	base::sample(size = 1))
+```
+
+```
+## [1] "231984_at"
+```
+
+```r
+j.triple.t <- c(j.tt.1, j.time.1, j.treat.1)  ## sounds like a rap artist name
+```
+
+
+```r
+gathered_data %>% 
+	dplyr::filter(ProbeID %in% j.triple.t) %>% 
+	group_by(Treatment, ProbeID) %>% 
+	do(mutate(., mean = mean(intensity))) %>% 
+	ggplot(aes(x = hours, y = intensity, color = Treatment)) + geom_point(shape = 1, size = 4) + 
+	geom_point(aes(y = mean), shape = 95, size = 10) + facet_wrap(~ProbeID, ncol = 8) +
+	stat_smooth(method = "lm") +
+	scale_color_manual(values = diff.colors) +
+	ggtitle("Intensity of Probes Reported as \n Differentially Expressed in Treatment \n or Time Terms of Combined Model") + 
+	ylab("log2-scaled intensity") + xlab("Time (hours)")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-42-1.png)
+
+Let's walk through this.  On the left we have "218581_at".  This probe should have:  
+- Different group averages BUT control slope ~= 0 (sig in treatment only)  `j.treat`  
+Looks about right!
+
+Next up we have "231984_at".  This probe should have:  
+- Different group averages AND control slope != 0 (sig in treament & time) `j.tt`  
+Fantastic! So far so good!
+
+Finally, we have "238332_at".  This probe should have:  
+- Same group averages BUT control slope != 0 (sig in time only) `j.time`  
+Woohoo!!! Looks good all around, I am very happy with my understanding of this model :)
+
+Finally, let's just look at a few probes that only showed significance in the interaction term (differences between slope).
+For these probes, we expect to see a difference between control slope & cigarette smoke slope, BUT  
+- Control slope ~= 0  
+- Same group averages
+
+
+```r
+combined.only <- setdiff(fewProbes.combined$probeID, not.combined)
+set.seed(20)
+sig.with.interaction <- combined.only %>% 
+	base::sample(size = 3)
+
+gathered_data %>% 
+	dplyr::filter(ProbeID %in% sig.with.interaction) %>% 
+	group_by(Treatment, ProbeID) %>% 
+	do(mutate(., mean = mean(intensity))) %>% 
+	ggplot(aes(x = hours, y = intensity, color = Treatment)) + geom_point(shape = 1, size = 4) + 
+	geom_point(aes(y = mean), shape = 95, size = 10) + facet_wrap(~ProbeID, ncol = 8) +
+	stat_smooth(method = "lm") +
+	scale_color_manual(values = diff.colors) +
+	ggtitle("Intensity of a Probe Reported as Differentially \n Expressed in Interaction Term Combined Model") + 
+	ylab("log2-scaled intensity") + xlab("Time (hours)")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-43-1.png)
+
+Looks good! In all of these cases we've got control slopes very close to flat (zero).  Also, in all of these cases our group averages are very close!  In 226286_at, our averages are further apart, but the spread is also greater, which is visible in the confidence interval of the fit line.  I could have plotted mean+-SEM, but it is evident in the spread of the points, and would have just made all of my graphs noisier.  I'm very content to move on to question 6. Let's do it!
 
 # 6 Microarray Analysis
 
@@ -1806,7 +2138,7 @@ yeast %>% dplyr::select(-probeID) %>%
 	)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-32-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-45-1.png)
 
 Beautiful! I'm glad I found the `ggpairs()` function, that's made my life a lot easier.  
 We can see easily now, that we've got correlation between two groups:  
@@ -1885,7 +2217,7 @@ ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) +
 	scale_fill_gradientn(colors = heatmapcolors)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-34-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-47-1.png)
 
 Okay, now let's rearrange based on what we decided from our pairwise sample-sample scatterplots and what looks like some obvious clustering in our first heatmap.
 
@@ -1899,7 +2231,7 @@ ggplot(yeast.corr, aes(x = sample, y = correlate, fill = correlation)) +
 	scale_fill_gradientn(colors = heatmapcolors)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-35-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-48-1.png)
 
 This makes it seem rather apparent that b1, c1, and c3 are part of one group, and c2, b3, and b2 are part of another group.  Either that or there are some serious flaws with these microarrays.  
 
@@ -1915,7 +2247,7 @@ gath.yeast %>%
 	ylab("probeID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-36-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-49-1.png)
 
 And now with our samples sorted into what we believe to be the true groups.  
 
@@ -1932,7 +2264,7 @@ gath.yeast %>%
 	ylab("probeID")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-37-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-50-1.png)
 
 Finally, how about PCA? We can use `FactoMineR::PCA` to get a simple plot, or use `stats::prcomp` for an object we can pipe into `ggplot2`.  
 
@@ -1944,7 +2276,7 @@ noProbes.yeast$probeID <- NULL
 fPCA <- FactoMineR::PCA(noProbes.yeast, scale.unit = FALSE)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-38-1.png)![](SamHinshawHomework_files/figure-html/unnamed-chunk-38-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-51-1.png)![](SamHinshawHomework_files/figure-html/unnamed-chunk-51-2.png)
 
 ```r
 sPCA <- stats::prcomp(noProbes.yeast, scale. = FALSE)
@@ -1974,7 +2306,7 @@ ggplot(PCA.rotation, aes(x = PC1, y = PC2, label = rownames(PCA.rotation))) +
 	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-39-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-52-1.png)
 
 Note that we get a different looking distribution if we scale our values. Regardless, the clustering is obvious, and our principal components are the same.  
 
@@ -2002,7 +2334,7 @@ ggplot(PCA.rotation.scaled, aes(x = PC1, y = PC2, label = rownames(PCA.rotation)
 	geom_point() + geom_text(nudge_y = 0.05) + xlab(PC1.variance) + ylab(PC2.variance)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-40-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-53-1.png)
 
 Finally, if we also wanted to plot our observations, we could use the `ggbiplot` package.  
 
@@ -2015,7 +2347,7 @@ g + scale_color_discrete(name = '') +
 	ggtitle("PCA Plot of Yeast Samples")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-41-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-54-1.png)
 
 Given all of these plots, we can now satisfactorally conclude that samples b1 and c2 have accidentally been swapped. Let's fix that and continue!
 
@@ -2155,7 +2487,7 @@ results.yeast <- decideTests(efit.yeast)
 vennDiagram(results.yeast)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-46-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-59-1.png)
 
 Great! Let's check out our p-value distribution before we continue though
 
@@ -2166,7 +2498,7 @@ p + geom_histogram(binwidth = 0.05) +
 	ggtitle("P-Value Distribution of Significant \n Genes with BH Correction")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-47-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-60-1.png)
 
 That looks pretty drastic, but I'm not sure it's wrong. 
 
@@ -2194,46 +2526,7 @@ tT.yeast$probeID <- rownames(tT.yeast)
 ## Variables not shown: probeID (chr)
 ```
 
-Here, I'll use biomaRt to get gene IDs and ensembl gene IDs.  We know from the homework that this experiment is using the Affymetrix Yeast Genome Array 2.0 platform, and we can do a quick check on GEO to confirm.  [GSE37599](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE37599), and [GPL2529](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL2529), Affymetrix Yeast Genome 2.0 Array.  Perfect!
-
-```r
-# ensembl <- useMart("ensembl") # set up biomaRt to use the ensembl database
-# datasets <- listDatasets(ensembl) # store our datasets so we can see which to use
-# ensembl <- useDataset("scerevisiae_gene_ensembl", mart = ensembl) # use the human data set!
-# filters <- listFilters(ensembl) # find what filters we can use and cross fingers that it's here
-# attributes <- listAttributes(ensembl) # ditto with the attributes
-# yeast_probe_IDs <- getBM(attributes = c("external_gene_name", "ensembl_gene_id", "affy_yeast_2"), filters = "affy_yeast_2", values = yeast.fixed$probeID, mart = ensembl) # query the probeIDs
-# head(yeast_probe_IDs)
-# colnames(yeast_probe_IDs)[3] <- "probeID"
-# nrow(yeast_probe_IDs)
-# nrow(yeast.fixed)
-# yeast.fixed.genes.all <- left_join(yeast.fixed, yeast_probe_IDs, by = "probeID")
-# nrow(yeast.fixed.genes.all)
-# yeast.fixed.genes <- right_join(yeast.fixed, yeast_probe_IDs, by = "probeID") # inner_join() also works here
-# nrow(yeast.fixed.genes) ## Good, 6259 hits is a lot. Let's check to make sure we don't have any NAs in our gene IDs
-# sum(is.na(yeast.fixed.genes$external_gene_name))
-# ## Good none, but if we look at the data, particularly head(n = 10), we can actually see a missing value, it's just not encoded as "NA". I HATE IMPROPER NA ENCODING
-# ## the workaround...
-# yeast.fixed.genes %>% 
-# 	dplyr::filter(external_gene_name == "") %>% 
-# 	nrow()
-# ## Ouch, seriously? What about the ensembl gene IDs?
-# yeast.fixed.genes %>% 
-# 	dplyr::filter(ensembl_gene_id == "") %>% 
-# 	nrow()
-# ## Okay, that's much better. Before I continue though, I must rectify this NA encoding...
-# yeast.fixed.genes$external_gene_name %<>% 
-# 	gsub("^$", NA, x = .)
-# 
-# ## Check our work...
-# yeast.fixed.genes %>% 
-# 	dplyr::filter(external_gene_name == "") %>% 
-# 	nrow()
-# sum(is.na(yeast.fixed.genes$external_gene_name))
-# ## Much better!
-```
-
-Briefly, let's compare biomaRt's ability to match probes with that recommended by the assignment. I believe we should get the same number of hits.
+We know from the homework that this experiment is using the Affymetrix Yeast Genome Array 2.0 platform, and we can do a quick check on GEO to confirm.  [GSE37599](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE37599), and [GPL2529](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL2529), Affymetrix Yeast Genome 2.0 Array.  Let's bring in our gene IDs. 
 
 ```r
 # source("http://bioconductor.org/biocLite.R")    # Installing biocLite package
@@ -2278,7 +2571,7 @@ gene.ids.df %>%
 ```
 
 ```r
-## Good, well at least we've got more hits than whiffs, but I got more hits with biomaRt.  Let's save our hits. 
+## Good, well at least we've got more hits than whiffs.  Let's save our hits. 
 gene.id.hits <- gene.ids.df %>% 
 	dplyr::filter(!is.na(geneID)) %>% 
 	tbl_df()
@@ -2288,9 +2581,9 @@ yeast.fg.genes <- right_join(yeast.fg, gene.id.hits, by = "probeID")
 yeast.fixed.genes <- right_join(yeast.fixed, gene.id.hits, by = "probeID")
 ```
 
-Okay, so we've got 5705 hits out of 10928, that's not fantastic, but could be worse.  I got 5768 with biomaRt, but don't feel like dealing with a probe mapping to multiple gene IDs as `uniqueRows = TRUE` just wasn't working, and I couldn't seem to find the right `merge()` arguments (or how to properly use `semi_join()`).
+Okay, so we've got 5705 hits out of 10928, that's not fantastic, but could be worse.  Originally I tried biomaRt as well and got 5768, but don't feel like dealing with a probe mapping to multiple gene IDs as `uniqueRows = TRUE` just wasn't working, and I couldn't seem to find the right `merge()` arguments (or how to properly use `semi_join()`).
 
-Let's pull out our answers and clean up the table.  I'm deliberately not saving the probes without gene hits, as it was unclear in the homework.
+Let's pull out our answers and clean up the table.
 
 ```r
 yeast.genes %<>% 
@@ -2332,7 +2625,7 @@ yeast.fg %>%
 	ggtitle("Intensity of Probe 1772391_at, YIL057C ")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-52-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-65-1.png)
 
 >*How many probes are identified as differentially expressed at a false discovery rate (FDR) of 1e-5?*
 
@@ -2403,7 +2696,7 @@ ggplot(yeast.seq.cor, aes(x = Var1, y = Var2, fill = correlation)) +
 	scale_fill_gradientn(colors = tilegradient.short)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-56-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-69-1.png)
 
 ## 7.2 DEA of deep sequencing data
 
@@ -2440,16 +2733,7 @@ yeast.seq.dg
 ## 6537 more rows ...
 ```
 
-```r
-# yeast.genes <- yeast_probe_IDs %>% dplyr::select(-probeID)
-# colnames(yeast.genes) <- c("gene", "ensembl_gene_id")
-# yeast.seq.dg$genes <- inner_join(yeast.seq.dg$genes, yeast.genes, by = "gene")
-# yeast.seq.dg$genes <- inner_join(yeast.seq.dg$genes, yeast_probe_IDs)
-```
-
-Okay, looks good.  
-
-Fortunately we've already got our design matrix!
+Okay, looks good... and luckily we've already got a design matrix set up!
 
 ```r
 DM.yeast.seq <- model.matrix(~group, yeast.design)
@@ -2482,12 +2766,17 @@ yeast.seq.dg <- estimateGLMTagwiseDisp(yeast.seq.dg, DM.yeast.seq)
 plotBCV(yeast.seq.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-59-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-72-1.png)
 
 
 ```r
 yeast.seq.fit <- glmFit(yeast.seq.dg, DM.yeast.seq)
 yeast.seq.lrt <- glmLRT(yeast.seq.fit)
+```
+
+>*How many genes are differentially expressed between conditions at a false discovery rate (FDR) of 1e-5?*
+
+```r
 tT.yeast.seq <- topTags(yeast.seq.lrt, adjust.method = "fdr", p.value = 1e-5, n = Inf)
 nrow(tT.yeast.seq$table)
 ```
@@ -2511,11 +2800,12 @@ tT.yeast.seq$table %>%
 ## 6186 YPL201C  7.587718  7.073795 1845.458      0   0
 ```
 
+
 ```r
 plotSmear(yeast.seq.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-60-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-75-1.png)
 
 ```r
 yeast.test.deep <- exactTest(yeast.seq.dg)
@@ -2525,7 +2815,7 @@ ggplot(yeast.test.deep$table, aes(x = logCPM, y = logFC, color = threshold)) +
 	geom_point() + scale_color_manual(name = "P Value < 0.05", values = c("#56B4E9", "#FF661D"))
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-60-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-75-2.png)
 
 Unfortunately, as you can see, the negative binomial method employed by edgeR (and DESeq) does not fit yeast data well, due to the nature of yeast genes.  Therefore, this method is likely not the best for determining hits.  If there is time, I will work on limma-voom in question 9.
 
@@ -2575,13 +2865,6 @@ yeast.seq.low.dg
 ## 7121 more rows ...
 ```
 
-```r
-# yeast.genes <- yeast_probe_IDs %>% dplyr::select(-probeID)
-# colnames(yeast.genes) <- c("gene", "ensembl_gene_id")
-# yeast.seq.dg$genes <- inner_join(yeast.seq.dg$genes, yeast.genes, by = "gene")
-# yeast.seq.dg$genes <- inner_join(yeast.seq.dg$genes, yeast_probe_IDs)
-```
-
 Okay, looks good.  
 
 Fortunately we've already got our design matrix!
@@ -2618,7 +2901,7 @@ yeast.seq.low.dg <- estimateGLMTagwiseDisp(yeast.seq.low.dg, DM.yeast.seq)
 plotBCV(yeast.seq.low.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-64-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-79-1.png)
 
 
 ```r
@@ -2651,7 +2934,7 @@ tT.yeast.seq.low$table %>%
 plotSmear(yeast.seq.low.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-65-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-80-1.png)
 
 ```r
 yeast.test.low <- exactTest(yeast.seq.low.dg)
@@ -2660,7 +2943,7 @@ ggplot(yeast.test.low$table, aes(x = logCPM, y = logFC, color = threshold)) +
 	geom_point() + scale_color_manual(name = "P Value < 0.05", values = c("#56B4E9", "#FF661D"))
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-65-2.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-80-2.png)
 
 
 And let's write out our results as with deep sequencing!
@@ -2709,26 +2992,26 @@ draw.pairwise.venn(area1 = length(yeast.seq.overlap$a1),
 )
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-67-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-82-1.png)
 
 ```
-## (polygon[GRID.polygon.2568], polygon[GRID.polygon.2569], polygon[GRID.polygon.2570], polygon[GRID.polygon.2571], text[GRID.text.2572], text[GRID.text.2573], text[GRID.text.2574], text[GRID.text.2575])
+## (polygon[GRID.polygon.4125], polygon[GRID.polygon.4126], polygon[GRID.polygon.4127], polygon[GRID.polygon.4128], text[GRID.text.4129], text[GRID.text.4130], text[GRID.text.4131], text[GRID.text.4132])
 ```
 
 >*How many genes were identified by edgeR in both low and deep count data?*
 
-Looks good, seems like our low depth sequencing data is a perfect subset (487) of our deep sequencing (2239).  Therefore, overall we've got just 2240 hits, and it seems like lower depth sequencing just reduces our power to detect differentially expressed genes (albeit perhaps with some other costs).
+Looks good, seems like our low depth sequencing data is a perfect subset (487) of our deep sequencing (2239).  Therefore, overall we've got 2239 hits.
 
 >*How many genes were identified in all the analyses?*
 
 Okay, let's check the overlap for all of these studies. We can see how many matches we get between the 487 genes from low depth sequencing with the microarray results.  
 
 ```r
-intersect(yeast.DE.genes$gene.id, edger.low.results$gene.id) %>% length()
+intersect(yeast.DE.genes$gene.id, edger.deep.results$gene.id) %>% length()
 ```
 
 ```
-## [1] 267
+## [1] 693
 ```
 
 Interesting, about 267 genes match. For fun, let's do another quick Venn Diagram.  
@@ -2763,15 +3046,97 @@ draw.pairwise.venn(area1 = length(yeast.seq.overlap$a1),
 )
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-69-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-84-1.png)
 
 ```
-## (polygon[GRID.polygon.2576], polygon[GRID.polygon.2577], polygon[GRID.polygon.2578], polygon[GRID.polygon.2579], text[GRID.text.2580], text[GRID.text.2581], text[GRID.text.2582], text[GRID.text.2583], text[GRID.text.2584])
+## (polygon[GRID.polygon.4133], polygon[GRID.polygon.4134], polygon[GRID.polygon.4135], polygon[GRID.polygon.4136], text[GRID.text.4137], text[GRID.text.4138], text[GRID.text.4139], text[GRID.text.4140], text[GRID.text.4141])
 ```
+
+I'm not going to waste my time constructing some fancy triple Venn Diagram, as it's a terrible visualization tool.  But I will check how many non-overlapping genes we've got.  
+
+```r
+union(yeast.DE.genes$gene.id, edger.low.results$gene.id) %>% 
+	union(edger.deep.results$gene.id) %>% length()
+```
+
+```
+## [1] 2756
+```
+
+2756 total genes! That's good, and with 2239 from RNA-seq, we don't have that many findings exclusive to microarray.  
 
 >*Comment on the effect of sequencing depth on the DEA results.*
 
-As mentioned above, "...it seems like lower depth sequencing just reduces our power to detect differentially expressed genes (albeit perhaps with some other costs)."
+It seems like lower depth sequencing just reduces our power to detect differentially expressed genes.  This makes sense, as the low counts were a random sampling of 1%. However, there are other costs associated with overly-sequencing, particularly noise and diminishing returns.  Particularly, this manifests as many of your hits having very low log-fold changes.  This can be visualized with a volcano plot. 
+
+```r
+deep.seq.all <- topTags(yeast.seq.lrt, adjust.method = "fdr", n = Inf)
+deep.seq.all <- deep.seq.all$table %>% tbl_df() %>% 
+	mutate(threshold = as.factor(abs(logFC) > 2))
+ggplot(deep.seq.all, aes(x = logFC, y = -log10(FDR), color = threshold)) + 
+	geom_point(alpha = 0.5, size = 1.75) + 
+	theme(legend.position = "none") +
+	xlab("log2 fold change") + ylab("-log10 p-value") +
+	ggtitle("Volcano Plot of High Depth RNA-Seq")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-86-1.png)
+
+
+```r
+low.seq.all <- topTags(yeast.seq.low.lrt, adjust.method = "fdr", n = Inf)
+low.seq.all <- low.seq.all$table %>% tbl_df() %>% 
+	mutate(threshold = as.factor(abs(logFC) > 2))
+ggplot(low.seq.all, aes(x = logFC, y = -log10(FDR), color = threshold)) + 
+	geom_point(alpha = 0.5, size = 1.75) + 
+	theme(legend.position = "none") +
+	xlab("log2 fold change") + ylab("-log10 p-value") +
+	ggtitle("Volcano Plot of Low Depth RNA-Seq")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-87-1.png)
+
+Both look okay, but with more significant hits in the deep sequencing, of course. We can quantify how many hits are above or below the 2 log-fold change threshold, and I'll constrain it to significant hits.  
+
+```r
+deep.sig <- edger.deep.results %>% 
+	mutate(threshold = abs(log.fc) > 2)
+deep.sig$threshold %>% sum()
+```
+
+```
+## [1] 437
+```
+
+```r
+nrow(deep.sig) - deep.sig$threshold %>% sum()
+```
+
+```
+## [1] 2289
+```
+
+For deep sequencing we've got 437 significant probes above the log2FC threshold, and 2289 signifncant probes with less than 2 log-fold changes in expression.  
+
+
+```r
+low.sig <- edger.low.results %>% 
+	mutate(threshold = abs(log.fc) > 2)
+low.sig$threshold %>% sum()
+```
+
+```
+## [1] 236
+```
+
+```r
+nrow(low.sig) - low.sig$threshold %>% sum()
+```
+
+```
+## [1] 251
+```
+For low depth sequencing we've got just 236 significant probes above the log2FC threshold, BUT, only 251 signifncant probes with less than 2 log-fold changes in expression.  Overall this is a much better ratio, and illustrates the tradeoff with sequencing depth well. 
 
 
 # 8 Compare DEA results from RNA-Seq and arrays
@@ -2870,7 +3235,7 @@ yeast.fg.genes %>%
 	ylab("log2-scaled intensity") + xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-72-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-92-1.png)
 
 
 ```r
@@ -2880,11 +3245,11 @@ yeast.seq.low.melt %>%
 	do(mutate(., mean = mean(counts))) %>% 
 	ggplot(aes(x = group, y = counts)) + geom_point(shape = 1, size = 5) + 
 	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~geneID) +
-	ggtitle("RNA-Seq \n \n Intensity of Two Genes Reported as Differentially \n Expressed in Both Microarray Data and RNA-Seq Data") + 
+	ggtitle("RNA-Seq \n \n Counts of Two Genes Reported as Differentially \n Expressed in Both Microarray Data and RNA-Seq Data") + 
 	xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-73-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-93-1.png)
 
 ### 1 gene reported as differentially expressed in only the microarray assay
 
@@ -2940,7 +3305,7 @@ yeast.fg.genes %>%
 	ylab("log2-scaled intensity") + xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-75-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-95-1.png)
 
 
 ```r
@@ -2954,7 +3319,7 @@ yeast.seq.low.melt %>%
 	xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-76-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-96-1.png)
 
 
 ### 1 gene reported as differentially expressed in only the RNA-seq assay  
@@ -2983,7 +3348,7 @@ yeast.fg.genes %>%
 	ylab("log2-scaled intensity") + xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-78-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-98-1.png)
 
 
 ```r
@@ -2997,7 +3362,8 @@ yeast.seq.low.melt %>%
 	xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-79-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-99-1.png)
+
 ### 1 gene reported as not differentially expressed in either assay 
 
 
@@ -3031,7 +3397,7 @@ yeast.fg.genes %>%
 	ylab("log2-scaled intensity") + xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-81-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-101-1.png)
 
 
 ```r
@@ -3045,9 +3411,11 @@ yeast.seq.low.melt %>%
 	xlab("physiological growth conditions")
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-82-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-102-1.png)
+
+# Oh my god, I'm finally done!
 
 <center>\~Fin\~</center>
 
 ********
-This page was last updated on  Thursday, March 17, 2016 at 12:09AM
+This page was last updated on  Thursday, March 17, 2016 at 12:32PM
