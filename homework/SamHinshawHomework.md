@@ -45,13 +45,13 @@ We want `R >= 3.2.3`, `limma >= 3.26.7`,  & `edgeR >= 3.12.0`
 sessioninfo <- devtools::session_info()
 packages <- sessioninfo$packages
 packages %>% 
-	filter(package %in% c("limma", "edgeR"))
+	dplyr::filter(package %in% c("limma", "edgeR"))
 ```
 
 ```
 ##   package * version       date       source
-## 1   edgeR *  3.12.0 2015-12-17 Bioconductor
-## 2   limma *  3.26.7 2016-01-30 Bioconductor
+## 1   edgeR *  3.12.0 2016-03-12 Bioconductor
+## 2   limma *  3.26.8 2016-03-12 Bioconductor
 ```
 
 ```r
@@ -59,7 +59,7 @@ sessioninfo$platform$version
 ```
 
 ```
-## [1] "R version 3.2.3 (2015-12-10)"
+## [1] "R version 3.2.4 (2016-03-10)"
 ```
 
 Looks good, let's continue
@@ -423,7 +423,7 @@ Let's get biomaRt out of the way so we can move on.
 # ) %>% tbl_df()
 # 
 # probe.symbols %<>% 
-# 	filter(!is.na(geneSymbol))
+# 	dplyr::filter(!is.na(geneSymbol))
 
 # 
 # probe.geneID <- data.frame(
@@ -433,7 +433,7 @@ Let's get biomaRt out of the way so we can move on.
 # ) %>% tbl_df()
 # 
 # probe.geneID %<>% 
-# 	filter(!is.na(geneID))
+# 	dplyr::filter(!is.na(geneID))
 # 
 # probes.symbols.IDs <- inner_join(probe.symbols, probe.geneID, by = "probeID")
 
@@ -528,7 +528,7 @@ data[sample(nrow(data), 1), 1:6] %>% kable("markdown")
 
 ```r
 singleprobe <- gathered_data %>% 
-	filter(ProbeID == "231836_at")
+	dplyr::filter(ProbeID == "231836_at")
 ```
 
 
@@ -564,7 +564,7 @@ Let's do all permutations of combinations.
 ```r
 gathered_data %<>% mutate(perm = paste(as.character(Treatment), as.character(time), sep = "_"))
 singleprobe <- gathered_data %>% 
-	filter(ProbeID == "231836_at")
+	dplyr::filter(ProbeID == "231836_at")
 ```
 
 And now to plot...
@@ -649,8 +649,8 @@ joined_corr <- melted_corr %>%
 ```
 
 ```
-## Warning in inner_join_impl(x, y, by$x, by$y, suffix$x, suffix$y): joining
-## factor and character vector, coercing into character vector
+## Warning in inner_join_impl(x, y, by$x, by$y): joining factor and character
+## vector, coercing into character vector
 ```
 
 ```r
@@ -663,8 +663,8 @@ joined_corr %<>%
 ```
 
 ```
-## Warning in inner_join_impl(x, y, by$x, by$y, suffix$x, suffix$y): joining
-## factor and character vector, coercing into character vector
+## Warning in inner_join_impl(x, y, by$x, by$y): joining factor and character
+## vector, coercing into character vector
 ```
 
 ```r
@@ -735,12 +735,12 @@ Okay. That's an absolutely horrendous amount of code just to reorder a damn heat
 
 ```r
 outliers <- joined_corr %>% 
-	filter(InternalID == "GSE10718_Biomat_10")
+	dplyr::filter(InternalID == "GSE10718_Biomat_10")
 outliers %<>% 
 	mutate(qualitative2 = reorder(qualitative2, value, max))
 ## Mean Correlation for this sample
 outliers %>% 
-	filter(Var2 != "GSE10718_Biomat_10") %>% 
+	dplyr::filter(Var2 != "GSE10718_Biomat_10") %>% 
 	summarize(MeanCorr = mean(value))
 ```
 
@@ -756,7 +756,7 @@ Okay, looks like an outlier, but how can we be sure? What's the average correlat
 
 ```r
 joined_corr %>% 
-	filter(value != 1.0) %>% 
+	dplyr::filter(value != 1.0) %>% 
 	group_by(InternalID) %>% 
 	summarize(MeanCorr = mean(value)) %>% 
 	arrange(-MeanCorr) %>% 
@@ -795,7 +795,7 @@ joined_corr %>%
 ## What about within groups?
 
 joined_corr %>% 
-	filter(value != 1.0) %>% 
+	dplyr::filter(value != 1.0) %>% 
 	group_by(Treatment, hours) %>% 
 	summarize(MeanCorr = mean(value)) %>% 
 	arrange(-MeanCorr) %>% 
@@ -807,19 +807,19 @@ joined_corr %>%
 |Treatment       | hours|  MeanCorr|
 |:---------------|-----:|---------:|
 |cigarette_smoke |     1| 0.9157305|
+|cigarette_smoke |     2| 0.9082948|
+|cigarette_smoke |    24| 0.9071808|
+|cigarette_smoke |     4| 0.9044377|
 |control         |     4| 0.9153004|
 |control         |    24| 0.9114069|
-|cigarette_smoke |     2| 0.9082948|
 |control         |     2| 0.9078678|
-|cigarette_smoke |    24| 0.9071808|
 |control         |     1| 0.9049013|
-|cigarette_smoke |     4| 0.9044377|
 
 Lastly, how does this outlier sample compare to specific treatments (This is a 1hr control sample). For this I'll filter out correlation with itself.
 
 ```r
 outliers %>% 
-	filter(Var2 != "GSE10718_Biomat_10") %>% 
+	dplyr::filter(Var2 != "GSE10718_Biomat_10") %>% 
 	group_by(Treatment2, hours2) %>% 
 	summarize(MeanCorr = mean(value)) %>% 
 	arrange(-MeanCorr) %>% 
@@ -830,14 +830,14 @@ outliers %>%
 
 |Treatment2      | hours2|  MeanCorr|
 |:---------------|------:|---------:|
-|control         |      1| 0.9036029|
 |cigarette_smoke |      1| 0.9031898|
-|control         |     24| 0.9020827|
-|control         |      4| 0.9017017|
-|control         |      2| 0.8992022|
 |cigarette_smoke |      2| 0.8953648|
 |cigarette_smoke |      4| 0.8910155|
 |cigarette_smoke |     24| 0.8889794|
+|control         |      1| 0.9036029|
+|control         |     24| 0.9020827|
+|control         |      4| 0.9017017|
+|control         |      2| 0.8992022|
 
 At last, something meaningful!! This sample correlates MOST those samples within its own group, but also highly with the 1hr cigarette smoke group.  
 
@@ -1090,12 +1090,12 @@ tT.sig.fdr.filtered
 ## 9  0.9256205 10.907060 7.729633 8.438527e-08 0.0001933190 8.000666
 ## 10 0.6366539  9.588851 7.726141 8.502396e-08 0.0001933190 7.993752
 ## ..       ...       ...      ...          ...          ...      ...
-## Variables not shown: ProbeID (chr).
+## Variables not shown: ProbeID (chr)
 ```
 
 ```r
 topHits <- gathered_data %>% 
-	filter(ProbeID %in% tT.sig.fdr.filtered$ProbeID)
+	dplyr::filter(ProbeID %in% tT.sig.fdr.filtered$ProbeID)
 nrow(topHits)
 ```
 
@@ -1443,7 +1443,7 @@ design %>% arrange(Treatment, hours)
 ## 9   GSE10718_Biomat_4  GSM270894 cigarette_smoke   24_h    24
 ## 10  GSE10718_Biomat_5  GSM270895 cigarette_smoke   24_h    24
 ## ..                ...        ...             ...    ...   ...
-## Variables not shown: qualitative (chr).
+## Variables not shown: qualitative (chr)
 ```
 
 ```r
@@ -1604,7 +1604,7 @@ Now how about with the combined model?
 
 >*Is this number different from what you reported in 3.2? Why? Quantify the proportion of overlapping probes among your hits, when using the unadjusted p-value threshold of 1e-3.*
 
-Here we have just 768 significantly different genes, down from 805 when just considering treatment.  Let's look at the overlap (when not using FDR correction). We'll compare our toptables, `tT.treatment` and `tT.combined`.  
+Here we have just 573 significantly different genes, down from 805 when just considering treatment (when NOT using FDR correction).  Let's look at the overlap. We'll compare our toptables, `tT.treatment` and `tT.combined`.  
 
 ```r
 tT.treatment %<>% tbl_df()
@@ -2107,14 +2107,14 @@ design.matrix.yeast %>% kable("markdown")
 
 
 
-|   | Batch| Chemostat|
-|:--|-----:|---------:|
-|b1 |     1|         0|
-|b2 |     1|         0|
-|b3 |     1|         0|
-|c1 |     0|         1|
-|c2 |     0|         1|
-|c3 |     0|         1|
+| Batch| Chemostat|
+|-----:|---------:|
+|     1|         0|
+|     1|         0|
+|     1|         0|
+|     0|         1|
+|     0|         1|
+|     0|         1|
 
 ```r
 fit.yeast <- yeast.fixed %>% 
@@ -2123,6 +2123,9 @@ fit.yeast <- yeast.fixed %>%
 fit.yeast <- contrasts.fit(fit.yeast, contrast.matrix.yeast)
 efit.yeast <- eBayes(fit.yeast)
 tT.yeast <- topTable(efit.yeast, adjust.method="BH", number = Inf) # I know BH is default, but it's still good to specify
+#tT.yeast <- topTable(efit.yeast, adjust.method="fdr", number = Inf, p.value = 1e-5) # I know BH is default, but it's still good to specify
+## It is not specified to have a cutoff here, so I'm leaving it without a cutoff for now, but still with FDR (aka "BH") correction
+
 tT.yeast %>% head() %>% kable("markdown")
 ```
 
@@ -2155,14 +2158,15 @@ p + geom_histogram(binwidth = 0.05) +
 
 ![](SamHinshawHomework_files/figure-html/unnamed-chunk-42-1.png)
 
-That looks pretty drastic, but I'm not sure it's wrong. Let's pull out our answers
+That looks pretty drastic, but I'm not sure it's wrong. 
 
 ```r
+tT.yeast$probeID <- rownames(tT.yeast)
 (tT.yeast %<>% tbl_df())
 ```
 
 ```
-## Source: local data frame [10,928 x 6]
+## Source: local data frame [10,928 x 7]
 ## 
 ##         logFC  AveExpr          t      P.Value    adj.P.Val        B
 ##         (dbl)    (dbl)      (dbl)        (dbl)        (dbl)    (dbl)
@@ -2177,123 +2181,46 @@ That looks pretty drastic, but I'm not sure it's wrong. Let's pull out our answe
 ## 9   -4.895122 7.692760  -65.91159 4.843582e-12 5.881184e-09 18.25934
 ## 10  -6.053323 6.743367  -61.70349 8.116417e-12 8.521536e-09 17.83138
 ## ..        ...      ...        ...          ...          ...      ...
+## Variables not shown: probeID (chr)
 ```
-
-## 6.3 Microarray DEA continue
 
 Here, I'll use biomaRt to get gene IDs and ensembl gene IDs.  We know from the homework that this experiment is using the Affymetrix Yeast Genome Array 2.0 platform, and we can do a quick check on GEO to confirm.  [GSE37599](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE37599), and [GPL2529](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL2529), Affymetrix Yeast Genome 2.0 Array.  Perfect!
 
 ```r
-ensembl <- useMart("ensembl") # set up biomaRt to use the ensembl database
-datasets <- listDatasets(ensembl) # store our datasets so we can see which to use
-ensembl <- useDataset("scerevisiae_gene_ensembl", mart = ensembl) # use the human data set!
-filters <- listFilters(ensembl) # find what filters we can use and cross fingers that it's here
-attributes <- listAttributes(ensembl) # ditto with the attributes
-yeast_probe_IDs <- getBM(attributes = c("external_gene_name", "ensembl_gene_id", "affy_yeast_2"), filters = "affy_yeast_2", values = yeast.fixed$probeID, mart = ensembl) # query the probeIDs
-head(yeast_probe_IDs)
-```
-
-```
-##   external_gene_name ensembl_gene_id affy_yeast_2
-## 1             CUP1-2         YHR055C 1769803_s_at
-## 2               SGV1         YPR161C   1775638_at
-## 3               RTC1         YOL138C   1772806_at
-## 4               SXM1         YDR395W   1771544_at
-## 5               SYF2         YGR129W   1774505_at
-## 6               RHO1         YPR165W   1771897_at
-```
-
-```r
-colnames(yeast_probe_IDs)[3] <- "probeID"
-nrow(yeast_probe_IDs)
-```
-
-```
-## [1] 6259
-```
-
-```r
-nrow(yeast.fixed)
-```
-
-```
-## [1] 10928
-```
-
-```r
-yeast.fixed.genes.all <- left_join(yeast.fixed, yeast_probe_IDs, by = "probeID")
-nrow(yeast.fixed.genes.all)
-```
-
-```
-## [1] 11419
-```
-
-```r
-yeast.fixed.genes <- right_join(yeast.fixed, yeast_probe_IDs, by = "probeID") # inner_join() also works here
-nrow(yeast.fixed.genes) ## Good, 6259 hits is a lot. Let's check to make sure we don't have any NAs in our gene IDs
-```
-
-```
-## [1] 6259
-```
-
-```r
-sum(is.na(yeast.fixed.genes$external_gene_name))
-```
-
-```
-## [1] 0
-```
-
-```r
-## Good none, but if we look at the data, particularly head(n = 10), we can actually see a missing value, it's just not encoded as "NA". I HATE IMPROPER NA ENCODING
-## the workaround...
-yeast.fixed.genes %>% 
-	filter(external_gene_name == "") %>% 
-	nrow()
-```
-
-```
-## [1] 1024
-```
-
-```r
-## Ouch, seriously? What about the ensembl gene IDs?
-yeast.fixed.genes %>% 
-	filter(ensembl_gene_id == "") %>% 
-	nrow()
-```
-
-```
-## [1] 0
-```
-
-```r
-## Okay, that's much better. Before I continue though, I must rectify this NA encoding...
-yeast.fixed.genes$external_gene_name %<>% 
-	gsub("^$", NA, x = .)
-
-## Check our work...
-yeast.fixed.genes %>% 
-	filter(external_gene_name == "") %>% 
-	nrow()
-```
-
-```
-## [1] 0
-```
-
-```r
-sum(is.na(yeast.fixed.genes$external_gene_name))
-```
-
-```
-## [1] 1024
-```
-
-```r
-## Much better!
+# ensembl <- useMart("ensembl") # set up biomaRt to use the ensembl database
+# datasets <- listDatasets(ensembl) # store our datasets so we can see which to use
+# ensembl <- useDataset("scerevisiae_gene_ensembl", mart = ensembl) # use the human data set!
+# filters <- listFilters(ensembl) # find what filters we can use and cross fingers that it's here
+# attributes <- listAttributes(ensembl) # ditto with the attributes
+# yeast_probe_IDs <- getBM(attributes = c("external_gene_name", "ensembl_gene_id", "affy_yeast_2"), filters = "affy_yeast_2", values = yeast.fixed$probeID, mart = ensembl) # query the probeIDs
+# head(yeast_probe_IDs)
+# colnames(yeast_probe_IDs)[3] <- "probeID"
+# nrow(yeast_probe_IDs)
+# nrow(yeast.fixed)
+# yeast.fixed.genes.all <- left_join(yeast.fixed, yeast_probe_IDs, by = "probeID")
+# nrow(yeast.fixed.genes.all)
+# yeast.fixed.genes <- right_join(yeast.fixed, yeast_probe_IDs, by = "probeID") # inner_join() also works here
+# nrow(yeast.fixed.genes) ## Good, 6259 hits is a lot. Let's check to make sure we don't have any NAs in our gene IDs
+# sum(is.na(yeast.fixed.genes$external_gene_name))
+# ## Good none, but if we look at the data, particularly head(n = 10), we can actually see a missing value, it's just not encoded as "NA". I HATE IMPROPER NA ENCODING
+# ## the workaround...
+# yeast.fixed.genes %>% 
+# 	dplyr::filter(external_gene_name == "") %>% 
+# 	nrow()
+# ## Ouch, seriously? What about the ensembl gene IDs?
+# yeast.fixed.genes %>% 
+# 	dplyr::filter(ensembl_gene_id == "") %>% 
+# 	nrow()
+# ## Okay, that's much better. Before I continue though, I must rectify this NA encoding...
+# yeast.fixed.genes$external_gene_name %<>% 
+# 	gsub("^$", NA, x = .)
+# 
+# ## Check our work...
+# yeast.fixed.genes %>% 
+# 	dplyr::filter(external_gene_name == "") %>% 
+# 	nrow()
+# sum(is.na(yeast.fixed.genes$external_gene_name))
+# ## Much better!
 ```
 
 Briefly, let's compare biomaRt's ability to match probes with that recommended by the assignment. I believe we should get the same number of hits.
@@ -2321,7 +2248,7 @@ gene.ids.df <- data.frame(
 ## This is perfect, we'll see where we've got NAs
 ## Number of Hits:
 gene.ids.df %>% 
-	filter(!is.na(geneID)) %>% 
+	dplyr::filter(!is.na(geneID)) %>% 
 	nrow()
 ```
 
@@ -2332,7 +2259,7 @@ gene.ids.df %>%
 ```r
 ## Number of whiffs:
 gene.ids.df %>% 
-	filter(is.na(geneID)) %>% 
+	dplyr::filter(is.na(geneID)) %>% 
 	nrow()
 ```
 
@@ -2343,11 +2270,82 @@ gene.ids.df %>%
 ```r
 ## Good, well at least we've got more hits than whiffs, but I got more hits with biomaRt.  Let's save our hits. 
 gene.id.hits <- gene.ids.df %>% 
-	filter(!is.na(geneID)) %>% 
+	dplyr::filter(!is.na(geneID)) %>% 
 	tbl_df()
+
+yeast.genes <- right_join(tT.yeast, gene.id.hits, by = "probeID")
+yeast.fg.genes <- right_join(yeast.fg, gene.id.hits, by = "probeID")
+yeast.fixed.genes <- right_join(yeast.fixed, gene.id.hits, by = "probeID")
 ```
 
-Let's look at the differential expression for batch vs chemostat. 
+Okay, so we've got 5705 hits out of 10928, that's not fantastic, but could be worse.  I got 5768 with biomaRt, but don't feel like dealing with a probe mapping to multiple gene IDs as `uniqueRows = TRUE` just wasn't working, and I couldn't seem to find the right `merge()` arguments (or how to properly use `semi_join()`).
+
+Let's pull out our answers and clean up the table.  I'm deliberately not saving the probes without gene hits, as it was unclear in the homework.
+
+```r
+yeast.genes %<>% 
+	select(-AveExpr, -B)
+colnames(yeast.genes) <- c("log.fc", "test.stat", "p.value", "q.value", "probe.id", "gene.id")
+write_tsv(yeast.genes, "limma.microarray.results.tsv")
+```
+
+
+## 6.3 Microarray DEA continue
+
+>*Illustrate the differential expression between the batch and the chemostat samples for the top hit (i.e., probe with the lowest p- or q-value).*
+
+```r
+yeast.genes %<>% 
+	arrange(q.value)
+head(yeast.genes, n = 1)
+```
+
+```
+## Source: local data frame [1 x 6]
+## 
+##      log.fc test.stat      p.value      q.value   probe.id gene.id
+##       (dbl)     (dbl)        (dbl)        (dbl)      (chr)   (chr)
+## 1 -10.11147 -108.9296 9.477652e-14 1.035718e-09 1772391_at YIL057C
+```
+
+Alright! Let's look at probe "1772391_at", or YIL057C, a "Protein of unknown function; involved in energy metabolism under respiratory conditions; expression induced under carbon limitation and repressed under high glucose; RGI2 has a paralog, RGI1, that arose from the whole genome duplication."<sup>[1](http://uswest.ensembl.org/Saccharomyces_cerevisiae/Gene/Summary?db=core;g=YIL057C;r=IX:247902-248396;t=YIL057C)</sup>
+
+Let's visualize this probe:
+
+```r
+yeast.fg %>% 
+	filter(probeID == "1772391_at") %>% 
+	group_by(group) %>% 
+	do(mutate(., mean = mean(intensity))) %>% 
+	ggplot(aes(x = group, y = intensity)) + geom_point(stat = "identity", shape = 1, size = 5) + ylim(0, 13) + 
+	geom_point(aes(y = mean), shape = 95, size = 12) +
+	ggtitle("Intensity of Probe 1772391_at, YIL057C ")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-47-1.png)
+
+>*How many probes are identified as differentially expressed at a false discovery rate (FDR) of 1e-5?*
+
+```r
+tT.yeast.cutoff <- topTable(efit.yeast, adjust.method="fdr", number = Inf, p.value = 1e-5)
+nrow(tT.yeast.cutoff)
+```
+
+```
+## [1] 732
+```
+
+Here we only get 732 differentially expressed genes. Not too shabby. Let's save this file and move on.
+
+```r
+tT.yeast.cutoff$probeID <- rownames(tT.yeast.cutoff)
+yeast.DE.genes <- inner_join(tT.yeast.cutoff, gene.id.hits, by = "probeID") %>% tbl_df()
+yeast.DE.genes %<>% 
+	select(-AveExpr, -B)
+colnames(yeast.DE.genes) <- c("log.fc", "test.stat", "p.value", "q.value", "probe.id", "gene.id")
+write_tsv(yeast.DE.genes, "limma.microarray.results.tsv")
+```
+
 
 # 7 RNA-seq analysis
 
@@ -2395,7 +2393,7 @@ ggplot(yeast.seq.cor, aes(x = Var1, y = Var2, fill = correlation)) +
 	scale_fill_gradientn(colors = tilegradient.short)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-46-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-51-1.png)
 
 ## 7.2 DEA of deep sequencing data
 
@@ -2484,7 +2482,7 @@ estimateSizeFactorsForMatrix(yeast.seq.dg$counts)
 plotBCV(yeast.seq.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-49-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-54-1.png)
 
 
 ```r
@@ -2517,7 +2515,20 @@ tT.yeast.seq$table %>%
 plotSmear(yeast.seq.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-50-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-55-1.png)
+
+```r
+yeast.test.deep <- exactTest(yeast.seq.dg)
+
+yeast.test.deep$table$threshold <- as.factor(abs(yeast.test.deep$table$PValue) < 0.05)
+ggplot(yeast.test.deep$table, aes(x = logCPM, y = logFC, color = threshold)) +
+	geom_point() + scale_color_manual(name = "P Value < 0.05", values = c("#56B4E9", "#FF661D"))
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-55-2.png)
+
+Unfortunately, as you can see, the negative binomial method employed by edgeR (and DESeq) does not fit yeast data well, due to the nature of yeast genes.  Therefore, this method is likely not the best for determining hits.  If there is time, I will work on limma-voom in question 9.
+
 
 Finally, let's pull our topTags results into a specific data.frame as specified by the homework.  
 
@@ -2616,7 +2627,7 @@ estimateSizeFactorsForMatrix(yeast.seq.low.dg$counts)
 plotBCV(yeast.seq.low.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-54-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-59-1.png)
 
 
 ```r
@@ -2649,7 +2660,17 @@ tT.yeast.seq.low$table %>%
 plotSmear(yeast.seq.low.dg)
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-55-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-60-1.png)
+
+```r
+yeast.test.low <- exactTest(yeast.seq.low.dg)
+yeast.test.low$table$threshold <- as.factor(abs(yeast.test.low$table$PValue) < 0.05)
+ggplot(yeast.test.low$table, aes(x = logCPM, y = logFC, color = threshold)) +
+	geom_point() + scale_color_manual(name = "P Value < 0.05", values = c("#56B4E9", "#FF661D"))
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-60-2.png)
+
 
 And let's write out our results as with deep sequencing!
 
@@ -2663,10 +2684,13 @@ write_tsv(edger.low.results, "edger.low.results.tsv")
 
 ## 7.4 	Deep vs low sequencing
 
+>*Create a Venn diagram showing all genes identified as differentially expressed (at FDR of 1e-5) in the two previous RNA-Seq analyses and answer the following questions based on the diagram:*
+
 Let's create our Venn Diagram
 
 ```r
 venncolors <- brewer.pal(3, "Set3")[1:2]
+
 yeast.seq.overlap <- calculate.overlap(
 	x = list(
 		"deep" = edger.deep.results$gene.id, 
@@ -2688,20 +2712,184 @@ str(yeast.seq.overlap)
 draw.pairwise.venn(area1 = length(yeast.seq.overlap$a1), 
 				   area2 = length(yeast.seq.overlap$a3), 
 				   cross.area = length(yeast.seq.overlap$a2), 
-				   fill = venncolors
+				   fill = venncolors, 
+				   category = c("Deep", "Low"), 
+				   ext.text = FALSE
 )
 ```
 
-![](SamHinshawHomework_files/figure-html/unnamed-chunk-57-1.png)
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-62-1.png)
 
 ```
-## (polygon[GRID.polygon.3247], polygon[GRID.polygon.3248], polygon[GRID.polygon.3249], polygon[GRID.polygon.3250], text[GRID.text.3251], text[GRID.text.3252], text[GRID.text.3253], text[GRID.text.3254])
+## (polygon[GRID.polygon.2326], polygon[GRID.polygon.2327], polygon[GRID.polygon.2328], polygon[GRID.polygon.2329], text[GRID.text.2330], text[GRID.text.2331], text[GRID.text.2332], text[GRID.text.2333])
 ```
 
-Looks good, seems like our low depth sequencing data is a perfect subset (486) of our deep sequencing (2240).  Therefore, overall we've got just 2240 hits, and it seems like lower depth sequencing just reduces our power to detect differentially expressed genes (albeit perhaps with some other costs).
+>*How many genes were identified by edgeR in both low and deep count data?*
+
+Looks good, seems like our low depth sequencing data is a perfect subset (487) of our deep sequencing (2239).  Therefore, overall we've got just 2240 hits, and it seems like lower depth sequencing just reduces our power to detect differentially expressed genes (albeit perhaps with some other costs).
+
+>*How many genes were identified in all the analyses?*
+
+Okay, let's check the overlap for all of these studies. We can see how many matches we get between the 487 genes from low depth sequencing with the microarray results.  
+
+```r
+intersect(yeast.DE.genes$gene.id, edger.low.results$gene.id) %>% length()
+```
+
+```
+## [1] 267
+```
+
+Interesting, about 267 genes match. For fun, let's do another quick Venn Diagram.  
+
+
+```r
+venncolors <- brewer.pal(3, "Set3")[1:2]
+
+yeast.seq.overlap <- calculate.overlap(
+	x = list(
+		"lowseq"  = edger.low.results$gene.id, 
+		"microarray" = yeast.DE.genes$gene.id
+	)
+)
+str(yeast.seq.overlap)
+```
+
+```
+## List of 3
+##  $ a1: chr [1:487] "YOR374W" "YKL217W" "YAL054C" "YDR343C" ...
+##  $ a2: chr [1:725] "YIL057C" "YOR388C" "YMR303C" "YMR206W" ...
+##  $ a3: chr [1:267] "YOR374W" "YKL217W" "YAL054C" "YBR067C" ...
+```
+
+```r
+draw.pairwise.venn(area1 = length(yeast.seq.overlap$a1), 
+				 area2 = length(yeast.seq.overlap$a2), 
+				 cross.area = length(yeast.seq.overlap$a3), 
+				 fill = venncolors, 
+				 category = c("Low Seq", "Microarray"), 
+				 ext.text = FALSE
+)
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-64-1.png)
+
+```
+## (polygon[GRID.polygon.2334], polygon[GRID.polygon.2335], polygon[GRID.polygon.2336], polygon[GRID.polygon.2337], text[GRID.text.2338], text[GRID.text.2339], text[GRID.text.2340], text[GRID.text.2341], text[GRID.text.2342])
+```
+
+>*Comment on the effect of sequencing depth on the DEA results.*
+
+As mentioned above, "...it seems like lower depth sequencing just reduces our power to detect differentially expressed genes (albeit perhaps with some other costs)."
 
 
 # 8 Compare DEA results from RNA-Seq and arrays
 
+## 8.1 Plots of interesting and boring genes
+
+Let's find some genes to look at! We want:  
+- 2 genes reported as differentially expressed in BOTH analyses  
+- 1 gene reported as differentially expressed in only the microarray assay  
+- 1 gene reported as differentially expressed in only the RNA-seq assay  
+- 1 gene reported as not differentially expressed in either assay  
+
+To not be overzealous, I'll be pulling results from the low depth sequencing. 
+
+```r
+set.seed(20)
+(our.two.hits <- intersect(yeast.DE.genes$gene.id, edger.low.results$gene.id) %>% 
+	base::sample(size = 2)
+)
+```
+
+```
+## [1] "YBR294W" "YKL216W"
+```
+
+Let's fiddle around with our count table to make it ready for plotting.
+
+```r
+yeast.seq.low.melt <- yeast.seq.low %>% 
+	melt() %>% tbl_df()
+```
+
+```
+## Using gene as id variables
+```
+
+```r
+colnames(yeast.seq.low.melt) <- c("geneID", "sample", "counts")
+yeast.seq.low.melt %<>% 
+	mutate(group = gsub("[0-9]$", "", sample))
+yeast.seq.low.melt %<>% 
+	mutate(group = gsub("^b$", "batch", group))
+yeast.seq.low.melt %<>% 
+	mutate(group = gsub("^c$", "chemostat", group))
+yeast.seq.low.melt
+```
+
+```
+## Source: local data frame [42,756 x 4]
+## 
+##     geneID sample counts group
+##      (chr) (fctr)  (int) (chr)
+## 1  YHR055C     b1      0 batch
+## 2  YPR161C     b1      4 batch
+## 3  YOL138C     b1      3 batch
+## 4  YDR395W     b1     21 batch
+## 5  YGR129W     b1      1 batch
+## 6  YPR165W     b1     33 batch
+## 7  YPR098C     b1      6 batch
+## 8  YPL015C     b1      3 batch
+## 9  YCL050C     b1     14 batch
+## 10 YAL069W     b1      1 batch
+## ..     ...    ...    ...   ...
+```
+
+```r
+tail(yeast.seq.low.melt)
+```
+
+```
+## Source: local data frame [6 x 4]
+## 
+##      geneID sample counts     group
+##       (chr) (fctr)  (int)     (chr)
+## 1  tL(UAG)J     c3      0 chemostat
+## 2  tR(UCU)E     c3      0 chemostat
+## 3  tS(AGA)B     c3      0 chemostat
+## 4     snR43     c3      1 chemostat
+## 5  tL(UAA)D     c3      0 chemostat
+## 6 tV(AAC)G3     c3      0 chemostat
+```
+
+
+
+```r
+yeast.fg.genes %>% 
+	filter(geneID %in% our.two.hits) %>% 
+	group_by(group, geneID) %>% 
+	do(mutate(., mean = mean(intensity))) %>% 
+	ggplot(aes(x = group, y = intensity)) + geom_point(stat = "identity", shape = 1, size = 5) + ylim(0, 13) + 
+	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~geneID) +
+	ggtitle("Intensity of Two Differentially Expressed Genes")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-67-1.png)
+
+
+```r
+yeast.seq.low.melt %>% 
+	filter(geneID %in% our.two.hits) %>% 
+	group_by(group, geneID) %>% 
+	do(mutate(., mean = mean(counts))) %>% 
+	ggplot(aes(x = group, y = counts)) + geom_point(shape = 1, size = 5) + 
+	geom_point(aes(y = mean), shape = 95, size = 12) + facet_wrap(~geneID) +
+	ggtitle("Intensity of Two Differentially Expressed Genes")
+```
+
+![](SamHinshawHomework_files/figure-html/unnamed-chunk-68-1.png)
+
+
 ********
-This page was last updated on  Wednesday, March 16, 2016 at 12:12PM
+This page was last updated on  Wednesday, March 16, 2016 at 09:55PM
