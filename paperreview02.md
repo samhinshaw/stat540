@@ -5,7 +5,7 @@
 *****
 
 #### Overview
-The goal of the FlowCAP IV challenge was to predict the time until progression to AIDS for HIV patients, a task which was manually studied by Ganesan, et al.<sup>[1](#References)</sup>
+The goal of the FlowCAP IV challenge was to predict the time until progression to AIDS for HIV patients, a task which was manually studied by Ganesan, et al.<sup>[1](#references)</sup>
 
 #### Data
 
