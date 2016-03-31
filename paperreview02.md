@@ -5,7 +5,7 @@
 *****
 
 #### Overview
-The goal of the FlowCAP IV challenge was to predict the time until progression to AIDS for HIV patients, a task which was manually studied by Ganesan, et al.<sup>1</sup>
+The goal of the FlowCAP IV challenge was to predict the time until progression to AIDS for HIV patients, a task which was manually studied by Ganesan, et al.<sup>[1](#References)</sup>
 
 #### Data
 
@@ -57,5 +57,9 @@ What is the Cox Proportional Hazards Model?
 
 #### Critique
 
+
 *****
+
+#### References 
+
 1. Ganesan A, Chattopadhyay PK, Brodie TM, Qin J, Gu W, Mascola JR, Michael NL,Follmann DA, Roederer M. Immunologic and virologic events in early HIV infectionpredict subsequent rate of progression. J Infect Dis 2010;201:272–284.
