@@ -16,6 +16,12 @@ The FloReMi algorithm performs in four main steps.
 3. Feature Selection. This step is a supervised machine learning method, and is key to the "minimal feature redundancy".  
 4. Survival Time Prediction.  Finally, with the features selected, the Cox Proportional Hazards model is used to fit a logsitic regression model to our selected features, predicting survival time of patients.  
 
+2. Feature Extraction
+- Determine splits -flowDensity for automatic gating in one dimension.  
+	+ Wonderfully optimized; no clustering!  
+- Define subsets from thresholds determined by flowDensity.  
+![Defined Subsets](./definedsubsets.png)
+
 #### Critique
 
 *****
