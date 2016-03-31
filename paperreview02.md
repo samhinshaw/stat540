@@ -19,8 +19,41 @@ The FloReMi algorithm performs in four main steps.
 2. Feature Extraction
 - Determine splits -flowDensity for automatic gating in one dimension.  
 	+ Wonderfully optimized; no clustering!  
-- Define subsets from thresholds determined by flowDensity.  
+- Define subsets from thresholds determined by flowDensity:  
 ![Defined Subsets](./definedsubsets.png)
+- Compute all 14 features for each subtype of each sample for both stimulated, unstimulated, and diff between stim & unstim. 
+![Equation](./equation.png)
+
+<center> ~~ Interjection ~~  </center>
+
+What is the Cox Proportional Hazards Model?  
+- Survival time is described as a probability distribution  
+- Hazard Ratio: ratio between chance for event in one group vs other group  
+- “Proportional Hazards” means you can have multiple groups  
+	+ Age, treatment, risk factors, etcetera  
+- Cox PH Regression will fit & tell you what groups matter  
+- “Censored values” allow for events not yet detected to be fit in regression  
+- Susceptible to highly correlated values  
+
+<center>![Cox PH Model](./coxPH.png) </center>  
+
+3. Feature Selection
+- Reduce number of features to allow for regression  
+- Can’t use Pearson correlation because of censored values  
+- Computer p-value of Cox proportional-hazard  
+	+ Feed 2.5 million features into the hazards model  
+- Sort on p-value  
+- Select only uncorrelated  
+	+ Pick features iteratively, discard if corr > 0.2
+
+4. Survival Time Prediction
+- Compute concordance
+	+ 0.5 = Random
+	+ 1.0 = Perfect
+	+ 0.0 = Predicted perfectly... just opposite
+- Cox PH model
+- Random survival forest
+- Additive hazards model
 
 #### Critique
 
