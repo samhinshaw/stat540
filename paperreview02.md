@@ -15,7 +15,9 @@ The authors were provided with the FlowCAP IV challenge dataset, high-dimensiona
 - IFN&gamma;, TNF&alpha;, CD4, CD27, CD107-A, CD154, CD3, CCR7, IL2, CD8, CD57, CD45RO, V-Amine/CD14 - various immune markers  
 
 #### Analysis
+
 The FloReMi algorithm performs in four main steps.  
+
 1. Preprocessing.  An automated approach to a standard flow cytometry workflow composed of six parts.  
 	+ Quality Control - Inspect uniformity of data over time (~5.30% removed)  
 	+ Remove margin events - Remove min/max, and oversaturated events (~2.30% removed)  

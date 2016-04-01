@@ -129,20 +129,34 @@ $(document).ready(function () {
 </div>
 <div id="analysis" class="section level4">
 <h4>Analysis</h4>
-<p>The FloReMi algorithm performs in four main steps.<br />
-1. Preprocessing. An automated approach to a standard flow cytometry workflow composed of six parts.<br />
- + Quality Control - Inspect uniformity of data over time (~5.30% removed)<br />
- + Remove margin events - Remove min/max, and oversaturated events (~2.30% removed)<br />
- + Remove doublets - Compute FSC-A/FSC-H ratio (~4.45% removed)<br />
- + Compensation - Traditional flow preprocessing<br />
- + Transformation - Traditional flow preprocessing<br />
- + Select live T-cells - Automatic gating with flowDensity on CD14<sup>lo</sup>/CD3<sup>hi</sup> 2. Feature Extraction. This is an unsupervised machine learning process composed of three parts.<br />
- + Determine Splits<br />
- + Take hi/lo intensities from automatic gating, and use them to find subsets<br />
- + Extract features of each subset as defined by flowType<br />
-3. Feature Selection. This step is a supervised machine learning method, and is key to the “minimal feature redundancy”.<br />
-4. Survival Time Prediction. Finally, with the features selected, the Cox Proportional Hazards model is used to fit a logsitic regression model to our selected features, predicting survival time of patients.</p>
-<ol start="2" style="list-style-type: decimal">
+<p>The FloReMi algorithm performs in four main steps.</p>
+<ol style="list-style-type: decimal">
+<li>Preprocessing. An automated approach to a standard flow cytometry workflow composed of six parts.
+<ul>
+<li>Quality Control - Inspect uniformity of data over time (~5.30% removed)<br />
+</li>
+<li>Remove margin events - Remove min/max, and oversaturated events (~2.30% removed)<br />
+</li>
+<li>Remove doublets - Compute FSC-A/FSC-H ratio (~4.45% removed)<br />
+</li>
+<li>Compensation - Traditional flow preprocessing<br />
+</li>
+<li>Transformation - Traditional flow preprocessing<br />
+</li>
+<li>Select live T-cells - Automatic gating with flowDensity on CD14<sup>lo</sup>/CD3<sup>hi</sup></li>
+</ul></li>
+<li>Feature Extraction. This is an unsupervised machine learning process composed of three parts.
+<ul>
+<li>Determine Splits<br />
+</li>
+<li>Take hi/lo intensities from automatic gating, and use them to find subsets<br />
+</li>
+<li>Extract features of each subset as defined by flowType<br />
+</li>
+</ul></li>
+<li>Feature Selection. This step is a supervised machine learning method, and is key to the “minimal feature redundancy”.<br />
+</li>
+<li><p>Survival Time Prediction. Finally, with the features selected, the Cox Proportional Hazards model is used to fit a logsitic regression model to our selected features, predicting survival time of patients.</p></li>
 <li>Feature Extraction</li>
 </ol>
 <ul>
