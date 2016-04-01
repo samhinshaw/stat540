@@ -10,14 +10,23 @@ This paper, the winner of the challenge, found that their method of minimal feat
 
 #### Data
 
-The authors were provided with the FlowCAP IV challenge dataset, high-dimensional (multicolor) flow cytometry dataset with sixteen different markers:
-- FSC-A, FSC-H, SSC-A - three markers describing cells' size and shape
-- IFN&gamma;, TNF&alpha;, CD4, CD27, CD107-A, CD154, CD3, CCR7, IL2, CD8, CD57, CD45RO, V-Amine/CD14 - various immune markers
+The authors were provided with the FlowCAP IV challenge dataset, high-dimensional (multicolor) flow cytometry dataset with sixteen different markers:  
+- FSC-A, FSC-H, SSC-A - three markers describing cells' size and shape  
+- IFN&gamma;, TNF&alpha;, CD4, CD27, CD107-A, CD154, CD3, CCR7, IL2, CD8, CD57, CD45RO, V-Amine/CD14 - various immune markers  
 
 #### Analysis
 The FloReMi algorithm performs in four main steps.  
-1. Preprocessing.  I will not touch on this further as this step is part of a standard flow cytometry workflow, and is not computationally-based.  
-2. Feature Extraction.  This step is unsupervised machine learning, and sets up feature selection.  
+1. Preprocessing.  An automated approach to a standard flow cytometry workflow composed of six parts.  
+	+ Quality Control - Inspect uniformity of data over time (~5.30% removed)  
+	+ Remove margin events - Remove min/max, and oversaturated events (~2.30% removed)  
+	+ Remove doublets - Compute FSC-A/FSC-H ratio (~4.45% removed)  
+	+ Compensation - Traditional flow preprocessing  
+	+ Transformation - Traditional flow preprocessing  
+	+ Select live T-cells - Automatic gating with flowDensity on CD14<sup>lo</sup>/CD3<sup>hi</sup>
+2. Feature Extraction.  This is an unsupervised machine learning process composed of three parts.  
+	+ Determine Splits  
+	+ Take hi/lo intensities from automatic gating, and use them to find subsets  
+	+ Extract features of each subset as defined by flowType  
 3. Feature Selection. This step is a supervised machine learning method, and is key to the "minimal feature redundancy".  
 4. Survival Time Prediction.  Finally, with the features selected, the Cox Proportional Hazards model is used to fit a logsitic regression model to our selected features, predicting survival time of patients.  
 
