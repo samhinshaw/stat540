@@ -21,7 +21,11 @@ The FloReMi algorithm performs in four main steps.
 1. Preprocessing.  
 The authors needed to automate a standard flow cytometry workflow because of the high dimensionality of the data, and in order for their research to be reproducible. First is quality control, inspecting uniformity of "events", or cells detected over time to remove clumps of cells or blank spots (~5.30% removed).  Next, the authors removed margin events cells that saturated the detector when fluorescing, or events below detection limits.  These such events are not reliable measurements (~2.30% removed).  Next the authors removed doublets (cell pairs) by computing the front scatter height to area ratio (FSC-A/FSC-H) to remove further unreliable readings (~4.45% removed).  Next, the authors performed two standard flow cytometry steps, first with compensation.  Compensating for crossover between excitation spectra of multiple fluorochromes is crucial in multicolor flow cytometry, particularly when measuring 13 features.  Transformation is simply a data transformation done for easier analysis.  Finally the authors gated on live T-cells (the CD14<sup>lo</sup>/CD3<sup>hi</sup> population) with flowDensity, an automated gating program developed at the BC Cancer Research Agency. CD14 is a monocyte/macrophage marker and CD3 is a T-cell marker.  
 
-Next, the authors moved to unsupervised learning with feature extraction.  This step is composed of three main parts.  
+2. Feature Extraction  
+Next, the authors moved to unsupervised learning with feature extraction.  This step is composed of three main parts.  First, flowDensity was used again to determine splits for 10 of the 16 features in the dataset (FSA-A, SSC-A, CD4, CD27, CD107-A, CD154, CCR7, CD8, CD57, and CD45RO).  FlowDensity determines best split based on density distribution, and splits between peaks:
+![Flow Density](./flowdensity.png)
+In this step, they excluded FSC-H, CD3, and CD14, because they were already taken into account in preprocessing.  Additionally, IFN&gamma;, TNF&alpha;, and IL-2 were removed to reduce computation time.  Though this may be functionally shooting yourself in the foot, these intracellular stains often don't have clear peaks, which makes automatic gating very difficult.  
+
 	+ Determine Splits  
 	+ Take hi/lo intensities from automatic gating, and use them to find subsets  
 	+ Extract features of each subset as defined by flowType  
