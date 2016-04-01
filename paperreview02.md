@@ -1,14 +1,14 @@
-### [FloReMi: Flow Density Survival Regression Using Minimal Feature Redundancy](http://www.dx.doi.org/10.1002/cyto.a.22734)
+## [FloReMi: Flow Density Survival Regression Using Minimal Feature Redundancy](http://www.dx.doi.org/10.1002/cyto.a.22734)
 
-#### Published in *Cytometry Part A*, August 2015
+### Published in *Cytometry Part A*, August 2015
 
 *****
 
-#### Goals & Findings
+### Goals & Findings
 This paper was published in response to the [FlowCAP IV challenge](http://flowcap.flowsite.org/), initiated to better predict clinical outcome of patients from blood draw samples.  Specifically, the goal of the FlowCAP IV challenge was to predict the time until progression to AIDS for HIV patients, given peripheral blood mononuclear cells (PBMC) analyzed in different conditions by flow cytometry. The FlowCAP consortium is run in part by the BC Cancer Agency and University of British Columbia.  
 This paper, the winner of the challenge, found that their method of minimal feature redundancy worked well during cross validation when combined with predictive models such as the Cox Proportional-Hazards model, the Additive Hazards model, and the Random Survival Forests model.  However, upon testing testing novel data, the authors found that even with their method, only the Random Survival Forest model did significantly better than random, mostly due to its resilience to overfitting.  
 
-#### Data
+### Data
 
 The authors were provided with the FlowCAP IV challenge dataset, high-dimensional (multicolor) flow cytometry dataset with sixteen different markers:  
 - FSC-A, FSC-H, SSC-A - three markers describing cells' size and shape  
@@ -16,7 +16,7 @@ The authors were provided with the FlowCAP IV challenge dataset, high-dimensiona
 The samples were split into two groups: stimulated with HIV antigen and unstimulated. 
 The authors were provided first with a training data set with which to develop their algorithm/pipeline, and later provided with a test dataset on which to test the efficacy of their algorithm.  
 
-#### Analysis
+### Analysis
 
 The FloReMi algorithm performs in four main steps.  
 
@@ -38,95 +38,28 @@ This step is a supervised machine learning method, and is key to the "minimal fe
 ![Concordance Index](coxphmodel.png)
 
 	+ For the Random Survival Forests, survival trees were generated where each split "maximizes survival distance between the daughter nodes".  A forest with 500 regression trees was generated, using the same 13 features as the Cox PH model.  Interestingly, this model returns mortality, not survival time, with mortality being scaled 0-1, and converted to survival time.  
-	+ Finally, "regularization for semiparametric additive hazards regression" was used, which is (as you can probably guess from the title), a regularized version of a standard hazards model.  This method should perform feature selection akin to LASSO or elastic net, choosing the 100 best features and performing 5-fold cross validation.  These parameters were tuned, with similar results whether 80 or 200 features were used.  
+	+ Finally, "regularization for semiparametric additive hazards regression" was used, which is (as you can probably guess from the title), a regularized version of a standard hazards model.  This method actually performs its own feature selection akin to LASSO or elastic net, choosing the 100 best features and performing 5-fold cross validation.  These parameters were tuned, with similar results whether 80 or 200 features were supplied.  
 
 
+### Results
+
+All models had p-values of ~0 when subjected to leave-one-out cross validation, and an impressive concordance index of >0.8.  Remember, for concordance:  
+- 1 = perfect prediction  
+- 0.5 = random prediction  
+- 0 = inverse (perfect) prediction  
+
+However, when run on the freshly supplied test dataset, the Cox PH model and the Additive Hazards model had concordance indices of NEARLY RANDOM (0.5).  Fortunately for the authors, the Random Survival Forests model still had a concordance index of 0.672 when run on the test dataset.  
+![overfitting](overfitting.png)
+This makes sense given that random forests are particularly robust to overfitting.  
+![Data Spread](dataspread.png)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-1. Preprocessing.  An automated approach to a standard flow cytometry workflow composed of six parts.  
-	+ Quality Control - Inspect uniformity of data over time (~5.30% removed)  
-	+ Remove margin events - Remove min/max, and oversaturated events (~2.30% removed)  
-	+ Remove doublets - Compute FSC-A/FSC-H ratio (~4.45% removed)  
-	+ Compensation - Traditional flow preprocessing  
-	+ Transformation - Traditional flow preprocessing  
-	+ Select live T-cells - Automatic gating with flowDensity on CD14<sup>lo</sup>/CD3<sup>hi</sup>
-2. Feature Extraction.  This is an unsupervised machine learning process composed of three parts.  
-	+ Determine Splits  
-	+ Take hi/lo intensities from automatic gating, and use them to find subsets  
-	+ Extract features of each subset as defined by flowType  
-3. Feature Selection. This step is a supervised machine learning method, and is key to the "minimal feature redundancy".  
-4. Survival Time Prediction.  Finally, with the features selected, the Cox proportional-hazards model is used to fit a logsitic regression model to our selected features, predicting survival time of patients.  
-
-2. Feature Extraction
-- Determine splits 
-	+ flowDensity for automatic gating in one dimension.  
-	+ Wonderfully optimized; no clustering!  
-- Define subsets from thresholds determined by flowDensity:  
-![Defined Subsets](./definedsubsets.png)
-- Compute all 14 features for each subtype of each sample for both stimulated, unstimulated, and diff between stim & unstim. 
-![Equation](./equation.png)
-
-<center> **~~ Interjection ~~**  </center>
-
-What is the Cox proportional-hazards Model?  
-- Survival time is described as a probability distribution  
-- Hazard Ratio: ratio between chance for event in one group vs other group  
-- “proportional-hazards” means you can have multiple groups  
-	+ Age, treatment, risk factors, etcetera  
-- Cox PH Regression will fit & tell you what groups matter  
-- “Censored values” allow for events not yet detected to be fit in regression  
-- Susceptible to highly correlated values  
-
-<center>![Cox PH Model](./coxPH.png) </center>  
-
-3. Feature Selection
-- Reduce number of features to allow for regression  
-- Can’t use Pearson correlation because of censored values  
-- Computer p-value of Cox proportional-hazard  
-	+ Feed 2.5 million features into the hazards model  
-- Sort on p-value  
-- Select only uncorrelated  
-	+ Pick features iteratively, discard if corr > 0.2  
-
-4. Survival Time Prediction  
-- Compute concordance  
-	+ 0.5 = Random  
-	+ 1.0 = Perfect  
-	+ 0.0 = Predicted perfectly... just opposite  
-- TNFα related features not present  
-- Add uncorrelated features until concordance does NOT improve  
-![Concordance Index](./coxphmodel.png)  
-- Random Survival Forest  
-	+ Survival trees where each split “maximizes survival distance between daughter nodes”  
-	+ Takes censored values into account  
-	+ Same 13 features as Cox PH  
-	+ Returns MORTALITY, not survival time  
-	+ Scaled mortality survival time: 0-1  
-- Regularization for Semiparametric Additive Hazards Regression  
-	+ Performs its own feature selection similar to LASSO or elastic net  
-	+ Authors took 100 “best” features & trained with 5  
 
 Step Done: Results  
-![Table 1](./table1.png)  
 - Overfitting  
 	+ Random Forests inherently resilient to overfitting  
 	+ Susceptible to highly correlated data, distorts randomness of trees  
 	+ BUT authors attempted to control for correlation  
-![Overfitting](./overfitting.png)
-![Data Spread](./dataspread.png)
 
 Findings
 - Findings are limited
@@ -137,12 +70,13 @@ Findings
 - Emphasizes possible importance of CD4+/CD8+ (double positive) T cells
 
 
-#### Critique
+### Critique
+
+It would have been interesting to see the authors use conditional inference trees as well as random survival forests.  <strike>I am still not sold on their methods of removing correlated features as well.  In my eyes, it is possible that something could be a better predictor even if it is slightly less correlated with survival (just based on the training data), and in this algorithm gets discarded due to its high (> 0.2 pearson index) correlation with another feature.</strike>  
 
 - Exclusion of IFN-γ,IL-2, and TNFα in Feature Extraction (3 days)  
 	+ IL-2 especially, T cell growth factor, and importance to T<sub>regs</sub>  
 - Still used in feature selection  
-![Other Papers](./otherpapers.png)  
 - Cox proportional-hazards Model has drawbacks  
 - Assumption that hazard ratio doesn’t change over time  
 	+ Can be untrue when hazards diverge (i.e. different treatment courses)
@@ -155,5 +89,5 @@ Findings
 
 *****
 
-#### References 
+### References 
 
