@@ -17,7 +17,8 @@ The FloReMi algorithm performs in four main steps.
 4. Survival Time Prediction.  Finally, with the features selected, the Cox Proportional Hazards model is used to fit a logsitic regression model to our selected features, predicting survival time of patients.  
 
 2. Feature Extraction
-- Determine splits -flowDensity for automatic gating in one dimension.  
+- Determine splits 
+	+ flowDensity for automatic gating in one dimension.  
 	+ Wonderfully optimized; no clustering!  
 - Define subsets from thresholds determined by flowDensity:  
 ![Defined Subsets](./definedsubsets.png)
@@ -44,18 +45,58 @@ What is the Cox Proportional Hazards Model?
 	+ Feed 2.5 million features into the hazards model  
 - Sort on p-value  
 - Select only uncorrelated  
-	+ Pick features iteratively, discard if corr > 0.2
+	+ Pick features iteratively, discard if corr > 0.2  
 
-4. Survival Time Prediction
-- Compute concordance
-	+ 0.5 = Random
-	+ 1.0 = Perfect
-	+ 0.0 = Predicted perfectly... just opposite
-- Cox PH model
-- Random survival forest
-- Additive hazards model
+4. Survival Time Prediction  
+- Compute concordance  
+	+ 0.5 = Random  
+	+ 1.0 = Perfect  
+	+ 0.0 = Predicted perfectly... just opposite  
+- TNFα related features not present  
+- Add uncorrelated features until concordance does NOT improve  
+![Concordance Index](./coxphmodel.png)  
+- Random Survival Forest  
+	+ Survival trees where each split “maximizes survival distance between daughter nodes”  
+	+ Takes censored values into account  
+	+ Same 13 features as Cox PH  
+	+ Returns MORTALITY, not survival time  
+	+ Scaled mortality survival time: 0-1  
+- Regularization for Semiparametric Additive Hazards Regression  
+	+ Performs its own feature selection similar to LASSO or elastic net  
+	+ Authors took 100 “best” features & trained with 5  
+
+Step Done: Results  
+![Table 1](./table1.png)  
+- Overfitting  
+	+ Random Forests inherently resilient to overfitting  
+	+ Susceptible to highly correlated data, distorts randomness of trees  
+	+ BUT authors attempted to control for correlation  
+![Overfitting](./overfitting.png)
+![Data Spread](./dataspread.png)
+
+Findings
+- Findings are limited
+- Partially due to dataset
+- Authors admit “mostly negative markers”
+- Could be redone with new markers
+![Obvious Markers](./obviousmarkers.png)
+- Emphasizes possible importance of CD4+/CD8+ (double positive) T cells
+
 
 #### Critique
+
+- Exclusion of IFN-γ,IL-2, and TNFαin Feature Extraction (3 days)  
+	+ IL-2 especially, T cell growth factor, and importance to T<sub>regs</sub>  
+- Still used in feature selection  
+![Other Papers](./otherpapers.png)  
+- Cox Proportional Hazards Model has drawbacks  
+- Assumption that hazard ratio doesn’t change over time  
+	+ Can be untrue when hazards diverge (i.e. different treatment courses)
+- Even with Random Survival Forest, Cox PH Model was used for feature selection
+- “Scaling” mortality to survival time seems a bit sketchy
+	+ But then again, results speak for themselves
+>*"Regression forests are for nonlinear multiple regression. They allow the analyst to view the importance of the predictor variables."*
+>*"Survival forests are a model-free approach to survival analysis. They allow the analyst to view the importance of the covariates as the experiment evolves in time"*
 
 
 *****
