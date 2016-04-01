@@ -85,7 +85,7 @@ Findings
 
 #### Critique
 
-- Exclusion of IFN-γ,IL-2, and TNFαin Feature Extraction (3 days)  
+- Exclusion of IFN-γ,IL-2, and TNFα in Feature Extraction (3 days)  
 	+ IL-2 especially, T cell growth factor, and importance to T<sub>regs</sub>  
 - Still used in feature selection  
 ![Other Papers](./otherpapers.png)  
