@@ -13,6 +13,8 @@ This paper, the winner of the challenge, found that their method of minimal feat
 The authors were provided with the FlowCAP IV challenge dataset, high-dimensional (multicolor) flow cytometry dataset with sixteen different markers:  
 - FSC-A, FSC-H, SSC-A - three markers describing cells' size and shape  
 - IFN&gamma;, TNF&alpha;, CD4, CD27, CD107-A, CD154, CD3, CCR7, IL2, CD8, CD57, CD45RO, V-Amine/CD14 - various immune markers  
+The samples were split into two groups: stimulated with HIV antigen and unstimulated. 
+The authors were provided first with a training data set with which to develop their algorithm/pipeline, and later provided with a test dataset on which to test the efficacy of their algorithm.  
 
 #### Analysis
 
@@ -22,15 +24,15 @@ The FloReMi algorithm performs in four main steps.
 The authors needed to automate a standard flow cytometry workflow because of the high dimensionality of the data, and in order for their research to be reproducible. First is quality control, inspecting uniformity of "events", or cells detected over time to remove clumps of cells or blank spots (~5.30% removed).  Next, the authors removed margin events cells that saturated the detector when fluorescing, or events below detection limits.  These such events are not reliable measurements (~2.30% removed).  Next the authors removed doublets (cell pairs) by computing the front scatter height to area ratio (FSC-A/FSC-H) to remove further unreliable readings (~4.45% removed).  Next, the authors performed two standard flow cytometry steps, first with compensation.  Compensating for crossover between excitation spectra of multiple fluorochromes is crucial in multicolor flow cytometry, particularly when measuring 13 features.  Transformation is simply a data transformation done for easier analysis.  Finally the authors gated on live T-cells (the CD14<sup>lo</sup>/CD3<sup>hi</sup> population) with flowDensity, an automated gating program developed at the BC Cancer Research Agency. CD14 is a monocyte/macrophage marker and CD3 is a T-cell marker.  
 
 2. Feature Extraction  
-Next, the authors moved to unsupervised learning with feature extraction.  This step is composed of three main parts.  First, flowDensity was used again to determine splits for 10 of the 16 features in the dataset (FSA-A, SSC-A, CD4, CD27, CD107-A, CD154, CCR7, CD8, CD57, and CD45RO).  FlowDensity determines best split based on density distribution, and splits between peaks:
+Next, the authors moved to unsupervised learning with feature extraction.  This step is composed of three main parts.  First, flowDensity was used again to determine splits for 10 of the 16 features in the dataset (FSA-A, SSC-A, CD4, CD27, CD107-A, CD154, CCR7, CD8, CD57, and CD45RO).  FlowDensity determines best split based on density distribution, and splits between peaks, as this figure illustrates.  
 ![Flow Density](./flowdensity.png)
-In this step, they excluded FSC-H, CD3, and CD14, because they were already taken into account in preprocessing.  Additionally, IFN&gamma;, TNF&alpha;, and IL-2 were removed to reduce computation time.  Though this may be functionally shooting yourself in the foot, these intracellular stains often don't have clear peaks, which makes automatic gating very difficult.  
+In this step, they excluded FSC-H, CD3, and CD14, because they were already taken into account in preprocessing.  Additionally, IFN&gamma;, TNF&alpha;, and IL-2 were removed to reduce computation time.  Though this sacrifices a great deal of information, these intracellular stains often don't have clear peaks, which makes automatic gating very difficult.  Next, the flowType dynamic programming algorithm was used to determine subsets based on these splits, identifying many cell populations that would not be manually identifiable.  In total, roughly 60,000 subsets were identified.  Finally, "features" of each subset were extracted--mean fluorescence intensity for each of the 13 immune markers (including IFN&gamma;, TNF&alpha;, and IL-2), as well as the percentage of cells.  This left the authors with 2.5 million features per patient (3^10 * 14) x 3 (three groups - stimulated, unstimulated, and difference).  
 
-	+ Determine Splits  
-	+ Take hi/lo intensities from automatic gating, and use them to find subsets  
-	+ Extract features of each subset as defined by flowType  
-3. Feature Selection. This step is a supervised machine learning method, and is key to the "minimal feature redundancy".  
-4. Survival Time Prediction.  Finally, with the features selected, the Cox Proportional Hazards model is used to fit a logsitic regression model to our selected features, predicting survival time of patients.  
+3. Feature Selection. 
+This step is a supervised machine learning method, and is key to the "minimal feature redundancy" highlighted in this paper's title.  The idea was to select features with high correlation to survival time, but because of the nature of survival analysis, a simple metric such as pearson correlation could not be used due to censored values (patients that had not yet progressed to AIDS).  Therefore, the authors proceeded with the Cox proportional-hazards model.  
+
+
+4. Survival Time Prediction.  Finally, with the features selected, the Cox proportional-hazards model is used to fit a logsitic regression model to our selected features, predicting survival time of patients.  
 
 
 
@@ -61,7 +63,7 @@ In this step, they excluded FSC-H, CD3, and CD14, because they were already take
 	+ Take hi/lo intensities from automatic gating, and use them to find subsets  
 	+ Extract features of each subset as defined by flowType  
 3. Feature Selection. This step is a supervised machine learning method, and is key to the "minimal feature redundancy".  
-4. Survival Time Prediction.  Finally, with the features selected, the Cox Proportional Hazards model is used to fit a logsitic regression model to our selected features, predicting survival time of patients.  
+4. Survival Time Prediction.  Finally, with the features selected, the Cox proportional-hazards model is used to fit a logsitic regression model to our selected features, predicting survival time of patients.  
 
 2. Feature Extraction
 - Determine splits 
@@ -74,10 +76,10 @@ In this step, they excluded FSC-H, CD3, and CD14, because they were already take
 
 <center> **~~ Interjection ~~**  </center>
 
-What is the Cox Proportional Hazards Model?  
+What is the Cox proportional-hazards Model?  
 - Survival time is described as a probability distribution  
 - Hazard Ratio: ratio between chance for event in one group vs other group  
-- “Proportional Hazards” means you can have multiple groups  
+- “proportional-hazards” means you can have multiple groups  
 	+ Age, treatment, risk factors, etcetera  
 - Cox PH Regression will fit & tell you what groups matter  
 - “Censored values” allow for events not yet detected to be fit in regression  
@@ -136,7 +138,7 @@ Findings
 	+ IL-2 especially, T cell growth factor, and importance to T<sub>regs</sub>  
 - Still used in feature selection  
 ![Other Papers](./otherpapers.png)  
-- Cox Proportional Hazards Model has drawbacks  
+- Cox proportional-hazards Model has drawbacks  
 - Assumption that hazard ratio doesn’t change over time  
 	+ Can be untrue when hazards diverge (i.e. different treatment courses)
 - Even with Random Survival Forest, Cox PH Model was used for feature selection
