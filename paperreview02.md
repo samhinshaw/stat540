@@ -5,7 +5,7 @@
 *****
 
 #### Goals & Findings
-This paper was published in response to the [FlowCAP IV challenge](http://flowcap.flowsite.org/), initiated to better predict clinical outcome of patients from blood draw samples.  Specifically, the goal of the FlowCAP IV challenge was to predict the time until progression to AIDS for HIV patients, given peripheral blood mononuclear cells (PBMC) analyzed in different conditions by flow cytometry. 
+This paper was published in response to the [FlowCAP IV challenge](http://flowcap.flowsite.org/), initiated to better predict clinical outcome of patients from blood draw samples.  Specifically, the goal of the FlowCAP IV challenge was to predict the time until progression to AIDS for HIV patients, given peripheral blood mononuclear cells (PBMC) analyzed in different conditions by flow cytometry. The FlowCAP consortium is run in part by the BC Cancer Agency and University of British Columbia.  
 This paper, the winner of the challenge, found that their method of minimal feature redundancy worked well during cross validation when combined with predictive models such as the Cox Proportional-Hazards model, the Additive Hazards model, and the Random Survival Forests model.  However, upon testing testing novel data, the authors found that even with their method, only the Random Survival Forest model did significantly better than random, mostly due to its resilience to overfitting.  
 
 #### Data
@@ -17,6 +17,33 @@ The authors were provided with the FlowCAP IV challenge dataset, high-dimensiona
 #### Analysis
 
 The FloReMi algorithm performs in four main steps.  
+
+1. Preprocessing.  
+The authors needed to automate a standard flow cytometry workflow because of the high dimensionality of the data, and in order for their research to be reproducible. First is quality control, inspecting uniformity of "events", or cells detected over time to remove clumps of cells or blank spots (~5.30% removed).  Next, the authors removed margin events cells that saturated the detector when fluorescing, or events below detection limits.  These such events are not reliable measurements (~2.30% removed).  Next the authors removed doublets (cell pairs) by computing the front scatter height to area ratio (FSC-A/FSC-H) to remove further unreliable readings (~4.45% removed).  Next, the authors performed two standard flow cytometry steps, first with compensation.  Compensating for crossover between excitation spectra of multiple fluorochromes is crucial in multicolor flow cytometry, particularly when measuring 13 features.  Transformation is simply a data transformation done for easier analysis.  Finally the authors gated on live T-cells (the CD14<sup>lo</sup>/CD3<sup>hi</sup> population) with flowDensity, an automated gating program developed at the BC Cancer Research Agency. CD14 is a monocyte/macrophage marker and CD3 is a T-cell marker.  
+
+Next, the authors moved to unsupervised learning with feature extraction.  This step is composed of three main parts.  
+	+ Determine Splits  
+	+ Take hi/lo intensities from automatic gating, and use them to find subsets  
+	+ Extract features of each subset as defined by flowType  
+3. Feature Selection. This step is a supervised machine learning method, and is key to the "minimal feature redundancy".  
+4. Survival Time Prediction.  Finally, with the features selected, the Cox Proportional Hazards model is used to fit a logsitic regression model to our selected features, predicting survival time of patients.  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 1. Preprocessing.  An automated approach to a standard flow cytometry workflow composed of six parts.  
 	+ Quality Control - Inspect uniformity of data over time (~5.30% removed)  
