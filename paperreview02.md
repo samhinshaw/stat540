@@ -4,10 +4,15 @@
 
 *****
 
-#### Overview
-The goal of the FlowCAP IV challenge was to predict the time until progression to AIDS for HIV patients, a task which was manually studied by Ganesan, et al.<sup>[1](#references)</sup>
+#### Goals & Findings
+This paper was published in response to the [FlowCAP IV challenge](http://flowcap.flowsite.org/), initiated to better predict clinical outcome of patients from blood draw samples.  Specifically, the goal of the FlowCAP IV challenge was to predict the time until progression to AIDS for HIV patients, given peripheral blood mononuclear cells (PBMC) analyzed in different conditions by flow cytometry. 
+This paper, the winner of the challenge, found that their method of minimal feature redundancy worked well during cross validation when combined with predictive models such as the Cox Proportional-Hazards model, the Additive Hazards model, and the Random Survival Forests model.  However, upon testing testing novel data, the authors found that even with their method, only the Random Survival Forest model did significantly better than random, mostly due to its resilience to overfitting.  
 
 #### Data
+
+The authors were provided with the FlowCAP IV challenge dataset, high-dimensional (multicolor) flow cytometry dataset with sixteen different markers:
+- FSC-A, FSC-H, SSC-A - three markers describing cells' size and shape
+- IFN&gamma;, TNF&alpha;, CD4, CD27, CD107-A, CD154, CD3, CCR7, IL2, CD8, CD57, CD45RO, V-Amine/CD14 - various immune markers
 
 #### Analysis
 The FloReMi algorithm performs in four main steps.  
@@ -25,7 +30,7 @@ The FloReMi algorithm performs in four main steps.
 - Compute all 14 features for each subtype of each sample for both stimulated, unstimulated, and diff between stim & unstim. 
 ![Equation](./equation.png)
 
-<center> ~~ Interjection ~~  </center>
+<center> **~~ Interjection ~~**  </center>
 
 What is the Cox Proportional Hazards Model?  
 - Survival time is described as a probability distribution  
@@ -103,4 +108,3 @@ Findings
 
 #### References 
 
-1. Ganesan A, Chattopadhyay PK, Brodie TM, Qin J, Gu W, Mascola JR, Michael NL,Follmann DA, Roederer M. Immunologic and virologic events in early HIV infectionpredict subsequent rate of progression. J Infect Dis 2010;201:272–284.
