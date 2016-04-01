@@ -43,7 +43,8 @@ This step is a supervised machine learning method, and is key to the "minimal fe
 
 ### Results
 
-All models had p-values of ~0 when subjected to leave-one-out cross validation, and an impressive concordance index of >0.8.  Remember, for concordance:  
+All models had p-values of ~0 when subjected to leave-one-out cross validation, and an impressive concordance index >0.8.  Remember, for concordance:  
+
 - 1 = perfect prediction  
 - 0.5 = random prediction  
 - 0 = inverse (perfect) prediction  
@@ -52,10 +53,14 @@ However, when run on the freshly supplied test dataset, the Cox PH model and the
 ![overfitting](overfitting.png)
 This makes sense given that random forests are particularly robust to overfitting.  
 ![Data Spread](dataspread.png)
+In this figure, I will draw your attention to the large spread of points in all of the models on the test dataset.  In addition, the correlation for Cox PH and Additive Hazards model are incredibly poor, with only the Random Survival Forests model having a positive slope, albeit with an enormous spread.  However, the authors are quick to point out the importance of their feature selection algorithm here.  Without this step, multicollinearity reduces the concordance index of the Random Survival Forests model to 0.5.  
+
+It is likely that overfitting is the main culprit to the poor scores on the test dataset.  The authors suggest that the features selected in training the model are specific to the training population, and are therefore poor predictors overall. 
 
 
 
 Step Done: Results  
+
 - Overfitting  
 	+ Random Forests inherently resilient to overfitting  
 	+ Susceptible to highly correlated data, distorts randomness of trees  
@@ -66,7 +71,6 @@ Findings
 - Partially due to dataset
 - Authors admit “mostly negative markers”
 - Could be redone with new markers
-![Obvious Markers](./obviousmarkers.png)
 - Emphasizes possible importance of CD4+/CD8+ (double positive) T cells
 
 
@@ -74,15 +78,22 @@ Findings
 
 It would have been interesting to see the authors use conditional inference trees as well as random survival forests.  <strike>I am still not sold on their methods of removing correlated features as well.  In my eyes, it is possible that something could be a better predictor even if it is slightly less correlated with survival (just based on the training data), and in this algorithm gets discarded due to its high (> 0.2 pearson index) correlation with another feature.</strike>  
 
-- Exclusion of IFN-γ,IL-2, and TNFα in Feature Extraction (3 days)  
+Interestingly, the model predicts that some of the best features for predicting survival time are "negative" features. Looking at **Table 3**, you can see that the vast majority of the subset identifiers are negative populations, with 2/13 of the subsets being entirely composed of negative markers.  This is worrisome, as it leads me to believe that there *are* other markers that better identify there populations that were not studied here.  In particular, the exclusion of IFN-γ, IL-2, and TNFα in the feature extraction step.  
+
+- Exclusion of IFN-γ, IL-2, and TNFα in Feature Extraction (3 days)  
 	+ IL-2 especially, T cell growth factor, and importance to T<sub>regs</sub>  
 - Still used in feature selection  
+
+
 - Cox proportional-hazards Model has drawbacks  
 - Assumption that hazard ratio doesn’t change over time  
 	+ Can be untrue when hazards diverge (i.e. different treatment courses)
+	
 - Even with Random Survival Forest, Cox PH Model was used for feature selection
-- “Scaling” mortality to survival time seems a bit sketchy
-	+ But then again, results speak for themselves
+There is still a possible weakness in the feature selection step here, as random forests are particularly susceptible to highly correlated data which distorts the randomness of trees.  Even though the authors attempted to control for highly correlated features, they only used a pearson correlation to this end.  I believe they could have looked at the identifiers of the subsets as well, and restricted their overlap.  For example, the first two features used were the percentage of cells in the unstimulated group with CD4/CD27 double negative population.  Though there were other differences between these groups, I find it hard to believe that they could be so different as to warrant being the top two features.  Perhaps the authors could have 
+
+- “Scaling” mortality to survival time seems a bit sketchy  
+	+ But then again, results speak for themselves  
 >*"Regression forests are for nonlinear multiple regression. They allow the analyst to view the importance of the predictor variables."*
 >*"Survival forests are a model-free approach to survival analysis. They allow the analyst to view the importance of the covariates as the experiment evolves in time"*
 
