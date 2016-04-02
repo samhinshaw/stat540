@@ -12,7 +12,7 @@ This paper, the winner of the challenge, found that their method of minimal feat
 
 The authors were provided with the FlowCAP IV challenge dataset, high-dimensional (multicolor) flow cytometry dataset with sixteen different markers:  
 - FSC-A, FSC-H, SSC-A - three markers describing cells' size and shape  
-- IFN&gamma;, TNF&alpha;, CD4, CD27, CD107-A, CD154, CD3, CCR7, IL2, CD8, CD57, CD45RO, V-Amine/CD14 - various immune markers  
+- IFNγ, TNFα, CD4, CD27, CD107-A, CD154, CD3, CCR7, IL2, CD8, CD57, CD45RO, V-Amine/CD14 - various immune markers  
 The samples were split into two groups: stimulated with HIV antigen and unstimulated. 
 The authors were provided first with a training data set with which to develop their algorithm/pipeline, and later provided with a test dataset on which to test the efficacy of their algorithm.  
 
@@ -34,8 +34,8 @@ The authors needed to automate a standard flow cytometry workflow because of the
 Next, the authors moved to unsupervised learning with feature extraction.  This step is composed of three main parts.  First, flowDensity was used again to determine splits for 10 of the 16 features in the dataset (FSA-A, SSC-A, CD4, CD27, CD107-A, CD154, CCR7, CD8, CD57, and CD45RO).  FlowDensity determines best split based on density distribution, and splits between peaks, as this figure illustrates.  
 ![Flow Density](flowdensity.png)  
 
-In this step, they excluded FSC-H, CD3, and CD14, because they were already taken into account in preprocessing.  Additionally, IFN&gamma;, TNF&alpha;, and IL-2 were removed to reduce computation time.  Though this sacrifices a great deal of information, these intracellular stains often don't have clear peaks, which makes automatic gating very difficult.  Next, the flowType dynamic programming algorithm was used to determine subsets based on these splits, identifying many cell populations that would not be manually identifiable.  In total, roughly 60,000 subsets were identified.  
-Finally, "features" of each subset were extracted--mean fluorescence intensity for each of the 13 immune markers (including IFN&gamma;, TNF&alpha;, and IL-2), as well as the percentage of cells.  This left the authors with 2.5 million features per patient (3^10 * 14) x 3 (three groups - stimulated, unstimulated, and difference).  
+In this step, they excluded FSC-H, CD3, and CD14, because they were already taken into account in preprocessing.  Additionally, IFNγ, TNFα, and IL-2 were removed to reduce computation time.  Though this sacrifices a great deal of information, these intracellular stains often don't have clear peaks, which makes automatic gating very difficult.  Next, the flowType dynamic programming algorithm was used to determine subsets based on these splits, identifying many cell populations that would not be manually identifiable.  In total, roughly 60,000 subsets were identified.  
+Finally, "features" of each subset were extracted--mean fluorescence intensity for each of the 13 immune markers (including IFNγ, TNFα, and IL-2), as well as the percentage of cells.  This left the authors with 2.5 million features per patient (3^10 * 14) x 3 (three groups - stimulated, unstimulated, and difference).  
 ![Defined Subsets](definedsubsets.png)
 
 3. Feature Selection. 
@@ -76,14 +76,6 @@ Even in the Random Survival Forests approach, the Cox PH model was used for feat
 
 Finally, “scaling” mortality (0-1 scale) to survival time seems a bit sketchy.  That being said, though it is less than ideal, the results speak for themselves.  However, it would be interesting if this method could be adapted to allow for greater performance, as random forests seem to have the best performance overall.  
 
-And that's all! I'll leave you with two quotes:
-
->*"Regression forests are for nonlinear multiple regression. They allow the analyst to view the importance of the predictor variables."*  
-
->*"Survival forests are a model-free approach to survival analysis. They allow the analyst to view the importance of the covariates as the experiment   evolves in time"*
-
 
 *****
-
-### References 
 
