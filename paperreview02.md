@@ -75,27 +75,22 @@ Findings
 
 
 ### Critique
+Interestingly, the model predicts that some of the best features for predicting survival time are "negative" features. Looking at **Table 3**, you can see that the vast majority of the subset identifiers are negative populations, with 2/13 of the subsets being entirely composed of negative markers.  This is worrisome, as it leads me to believe that there *are* other markers not studied here that better identify these populations.  Just off the top of my head, the exclusion of IFN-γ, IL-2, and TNFα in the feature extraction step could contribute to this problem.  
 
-It would have been interesting to see the authors use conditional inference trees as well as random survival forests.  <strike>I am still not sold on their methods of removing correlated features as well.  In my eyes, it is possible that something could be a better predictor even if it is slightly less correlated with survival (just based on the training data), and in this algorithm gets discarded due to its high (> 0.2 pearson index) correlation with another feature.</strike>  
+Continuing with that thought, the exclusion of IFN-γ, IL-2, and TNFα in Feature Extraction is particularly worrysome due to their functional importance.  IL-2 especially, which is a T cell growth factor, and of importance to T<sub>regs</sub>, may play a role in HIV. Though these cytokines were still used in feature selection, none of them appear in the top 13 list used in the Cox PH & Random Survival Forests models.  From an experimental design viewpoint, it would be interesting to repeat this study with new markers/stains.  
 
-Interestingly, the model predicts that some of the best features for predicting survival time are "negative" features. Looking at **Table 3**, you can see that the vast majority of the subset identifiers are negative populations, with 2/13 of the subsets being entirely composed of negative markers.  This is worrisome, as it leads me to believe that there *are* other markers that better identify there populations that were not studied here.  In particular, the exclusion of IFN-γ, IL-2, and TNFα in the feature extraction step.  
+Another weakness of this algorithm is its reliance on the Cox proportional-hazards model, which has its drawbacks.  Particularly, the Cox PH model assumes that the hazard ratio for any given patient does not change over time.  I believe this particular assumption is often untrue, as hazards may often diverge due to environmental/lifestyle factors, or simply due to change in treatment--which happens often with HIV patients.  
 
-- Exclusion of IFN-γ, IL-2, and TNFα in Feature Extraction (3 days)  
-	+ IL-2 especially, T cell growth factor, and importance to T<sub>regs</sub>  
-- Still used in feature selection  
+Even in the Random Survival Forests approach, the Cox PH model was used for feature selection.  There is still a possible weakness in the feature selection step here, as random forests are particularly susceptible to highly correlated data which distorts the randomness of trees.  Even though the authors attempted to control for highly correlated features, they only used a pearson correlation to this end.  I believe they could have looked at the identifiers of the subsets as well, and restricted their overlap.  For example, the first two features used were the percentage of cells in the unstimulated group with CD4/CD27 double negative population.  Though there were other differences between these groups, I find it hard to believe that they could be so different as to warrant being the top two features.  Perhaps the authors could have 
 
+Finally, “scaling” mortality (0-1 scale) to survival time seems a bit sketchy  That being said, though it is less than ideal the results speak for themselves.  However, it would be interesting if this method could be adapted at all to allow for greater performance.  
 
-- Cox proportional-hazards Model has drawbacks  
-- Assumption that hazard ratio doesn’t change over time  
-	+ Can be untrue when hazards diverge (i.e. different treatment courses)
-	
-- Even with Random Survival Forest, Cox PH Model was used for feature selection
-There is still a possible weakness in the feature selection step here, as random forests are particularly susceptible to highly correlated data which distorts the randomness of trees.  Even though the authors attempted to control for highly correlated features, they only used a pearson correlation to this end.  I believe they could have looked at the identifiers of the subsets as well, and restricted their overlap.  For example, the first two features used were the percentage of cells in the unstimulated group with CD4/CD27 double negative population.  Though there were other differences between these groups, I find it hard to believe that they could be so different as to warrant being the top two features.  Perhaps the authors could have 
+>*"Regression forests are for nonlinear multiple regression. They allow the analyst to view the importance of the predictor variables."*  
 
-- “Scaling” mortality to survival time seems a bit sketchy  
-	+ But then again, results speak for themselves  
->*"Regression forests are for nonlinear multiple regression. They allow the analyst to view the importance of the predictor variables."*
->*"Survival forests are a model-free approach to survival analysis. They allow the analyst to view the importance of the covariates as the experiment evolves in time"*
+>*"Survival forests are a model-free approach to survival analysis. They allow the analyst to view the importance of the covariates as the experiment   evolves in time"*
+
+<strike>It would have been interesting to see the authors use conditional inference trees as well as random survival forests.  
+I am still not sold on their methods of removing correlated features as well.  In my eyes, it is possible that something could be a better predictor even if it is slightly less correlated with survival (just based on the training data), and in this algorithm gets discarded due to its high (> 0.2 pearson index) correlation with another feature.</strike>  
 
 
 *****
