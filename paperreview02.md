@@ -11,6 +11,7 @@ This paper, the winner of the challenge, found that their method of minimal feat
 ### Data
 
 The authors were provided with the FlowCAP IV challenge dataset, high-dimensional (multicolor) flow cytometry dataset with sixteen different markers:  
+
 - FSC-A, FSC-H, SSC-A - three markers describing cells' size and shape  
 - IFNγ, TNFα, CD4, CD27, CD107-A, CD154, CD3, CCR7, IL2, CD8, CD57, CD45RO, V-Amine/CD14 - various immune markers  
 The samples were split into two groups: stimulated with HIV antigen and unstimulated. 
@@ -63,9 +64,9 @@ Finally, with the features selected, the authors evaluated three different regre
 
 All models had p-values of ~0 when subjected to leave-one-out cross validation, and an impressive concordance index >0.8.  Remember, for concordance:  
 
-- 1 = perfect prediction  
+- 1   = perfect prediction  
 - 0.5 = random prediction  
-- 0 = inverse (perfect) prediction  
+- 0   = inverse (perfect) prediction  
 
 However, when run on the freshly supplied test dataset, the Cox PH model and the Additive Hazards model had concordance indices of NEARLY RANDOM (0.5).  Fortunately for the authors, the Random Survival Forests model still had a concordance index of 0.672 when run on the test dataset.  
 ![overfitting](overfitting.png)
