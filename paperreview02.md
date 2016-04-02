@@ -20,7 +20,7 @@ The authors were provided first with a training data set with which to develop t
 
 The FloReMi algorithm performs in four main steps.  
 
-1. Preprocessing.  
+#### 1. Preprocessing.  
 The authors needed to automate a standard flow cytometry workflow because of the high dimensionality of the data, and in order for their research to be reproducible. 
 	- First is quality control, inspecting uniformity of "events", or cells detected over time to remove clumps of cells or blank spots (~5.30% removed).  
 	- Next, the authors removed margin events cells that saturated the detector when fluorescing, or events below detection limits.  These such events are not reliable measurements (~2.30% removed).  
@@ -30,7 +30,7 @@ The authors needed to automate a standard flow cytometry workflow because of the
 		+ Transformation is simply a data transformation done for easier analysis.  
 	- Finally the authors gated on live T-cells (the CD14<sup>lo</sup>/CD3<sup>hi</sup> population) with flowDensity, an automated gating program developed at the BC Cancer Research Agency. CD14 is a monocyte/macrophage marker and CD3 is a T-cell marker.  
 
-2. Feature Extraction  
+#### 2. Feature Extraction  
 Next, the authors moved to unsupervised learning with feature extraction.  This step is composed of three main parts.  First, flowDensity was used again to determine splits for 10 of the 16 features in the dataset (FSA-A, SSC-A, CD4, CD27, CD107-A, CD154, CCR7, CD8, CD57, and CD45RO).  FlowDensity determines best split based on density distribution, and splits between peaks, as this figure illustrates.  
 ![Flow Density](flowdensity.png)  
 
@@ -38,15 +38,18 @@ In this step, they excluded FSC-H, CD3, and CD14, because they were already take
 Finally, "features" of each subset were extracted--mean fluorescence intensity for each of the 13 immune markers (including IFNγ, TNFα, and IL-2), as well as the percentage of cells.  This left the authors with 2.5 million features per patient (3^10 * 14) x 3 (three groups - stimulated, unstimulated, and difference).  
 ![Defined Subsets](definedsubsets.png)
 
-3. Feature Selection. 
-This step is a supervised machine learning method, and is key to the "minimal feature redundancy" highlighted in this paper's title.  The idea was to select features with high correlation to survival time, but because of the nature of survival analysis, a simple metric such as pearson correlation could not be used due to censored values (patients that had not yet progressed to AIDS).  Therefore, the authors proceeded with the Cox proportional-hazards model.  First, each feature of the 2.5 million were fed into the hazards model--this returns a p-value and concordance index.  Next, the features must be picked.  However, features highly correlated with each other have a negative impact on training and classification (the multicollinearity problem), so redundancy must be minimized.  To combat this, the authors started adding the highest correlated features first, comparing pearson correlation *between features* as they went, and used a cutoff of corr < 0.2 to rule out correlated features.  This cutoff may seem stringent, but with 2.5 million features per patient, the authors could afford to be stringent.  Also remember that these features are the MFI of specific subtypes of cells, described by combinations of markers, and correlated features may only differ by a few markers in that subtype.  
+#### 3. Feature Selection. 
+This step is a supervised machine learning method, and is key to the "minimal feature redundancy" highlighted in this paper's title.  The idea was to select features with high correlation to survival time, but because of the nature of survival analysis, a simple metric such as pearson correlation could not be used due to censored values (patients that had not yet progressed to AIDS).  Therefore, the authors proceeded with the Cox proportional-hazards model.  
+- First, each feature of the 2.5 million were fed into the hazards model--this returns a p-value and concordance index.  Next, the features must be picked.  However, features highly correlated with each other have a negative impact on training and classification (the multicollinearity problem), so redundancy must be minimized.  
+- To combat this, the authors started adding the highest correlated features first, comparing pearson correlation *between features* as they went, and used a cutoff of corr < 0.2 to rule out correlated features.  This cutoff may seem stringent, but with 2.5 million features per patient, the authors could afford to be stringent.  Also remember that these features are the MFI of specific subtypes of cells, described by combinations of markers, and correlated features may only differ by a few markers in that subtype.  
 
-4. Survival Time Prediction.  Finally, with the features selected, the authors evaluated three different regression techniques to predict survival time (time to AIDS) of patients.  The authors performed leave-one-out cross validation on their training sets, creating a final model with the entire training dataset.  Finally, the model's performance was evaluated with p-values and concordance index.  
-	+ For the Cox proportional-hazards model, features were added until the concordance index did not improve.  The concordance index plateaued after approximately 13 features were added (see figure).  
+#### 4. Survival Time Prediction.  
+Finally, with the features selected, the authors evaluated three different regression techniques to predict survival time (time to AIDS) of patients.  The authors performed leave-one-out cross validation on their training sets, creating a final model with the entire training dataset.  Finally, the model's performance was evaluated with p-values and concordance index.  
+- For the Cox proportional-hazards model, features were added until the concordance index did not improve.  The concordance index plateaued after approximately 13 features were added (see figure).  
 ![Concordance Index](coxphmodel.png)
 
-	+ For the Random Survival Forests, survival trees were generated where each split "maximizes survival distance between the daughter nodes".  A forest with 500 regression trees was generated, using the same 13 features as the Cox PH model.  Interestingly, this model returns mortality, not survival time, with mortality being scaled 0-1, and converted to survival time.  
-	+ Finally, "regularization for semiparametric additive hazards regression" was used, which is (as you can probably guess from the title), a regularized version of a standard hazards model.  This method actually performs its own feature selection akin to LASSO or elastic net, choosing the 100 best features and performing 5-fold cross validation.  These parameters were tuned, with similar results whether 80 or 200 features were supplied.  
+- For the Random Survival Forests, survival trees were generated where each split "maximizes survival distance between the daughter nodes".  A forest with 500 regression trees was generated, using the same 13 features as the Cox PH model.  Interestingly, this model returns mortality, not survival time, with mortality being scaled 0-1, and converted to survival time.  
+- Finally, "regularization for semiparametric additive hazards regression" was used, which is (as you can probably guess from the title), a regularized version of a standard hazards model.  This method actually performs its own feature selection akin to LASSO or elastic net, choosing the 100 best features and performing 5-fold cross validation.  These parameters were tuned, with similar results whether 80 or 200 features were supplied.  
 
 
 ### Results
