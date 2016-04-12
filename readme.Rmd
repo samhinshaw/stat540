@@ -1,6 +1,5 @@
 ---
 title: "STAT540 Class Repository"
-author: "Sam Hinshaw"
 output: 
   html_document:
     toc: TRUE
@@ -14,8 +13,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Welcome to the STAT540 course repository for Sam Hinshaw.   
 
-If you're here, you're probably looking for my homework assignment!  
-Please check my [homework/](./homework) subdirectory.  
+If you're here, you might be looking for my personal project report!  Please check my [project directory](project/)
+
+
+For my homework, please check my [homework/](./homework) subdirectory.  
 
 ********
 This page was last updated on  `r format(Sys.time(), '%A, %B %d, %Y')` at `r format(Sys.time(), '%I:%M%p')`
