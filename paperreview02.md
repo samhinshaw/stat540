@@ -1,3 +1,6 @@
+---
+output: pdf_document
+---
 ## [FloReMi: Flow Density Survival Regression Using Minimal Feature Redundancy](http://www.dx.doi.org/10.1002/cyto.a.22734)
 
 ### Published in *Cytometry Part A*, August 2015
@@ -13,7 +16,7 @@ This paper, the winner of the challenge, found that their method of minimal feat
 The authors were provided with the FlowCAP IV challenge dataset, high-dimensional (multicolor) flow cytometry dataset with sixteen different markers:  
 
 - FSC-A, FSC-H, SSC-A - three markers describing cells' size and shape  
-- IFNγ, TNFα, CD4, CD27, CD107-A, CD154, CD3, CCR7, IL2, CD8, CD57, CD45RO, V-Amine/CD14 - various immune markers  
+- IFN\(\gamma\), TNF\(\alpha\), CD4, CD27, CD107-A, CD154, CD3, CCR7, IL2, CD8, CD57, CD45RO, V-Amine/CD14 - various immune markers  
 The samples were split into two groups: stimulated with HIV antigen and unstimulated. 
 The authors were provided first with a training data set with which to develop their algorithm/pipeline, and later provided with a test dataset on which to test the efficacy of their algorithm.  
 
@@ -31,7 +34,7 @@ The authors needed to automate a standard flow cytometry workflow because of the
 - Next, the authors performed two standard flow cytometry steps, compensation and transformation.  
 	+ Compensating for crossover between excitation spectra of multiple fluorochromes is crucial in multicolor flow cytometry, particularly when measuring 13 features.  
 	+ Transformation is simply a data transformation done for easier analysis.  
-- Finally the authors gated on live T-cells (the CD14<sup>lo</sup>/CD3<sup>hi</sup> population) with flowDensity, an automated gating program developed at the BC Cancer Research Agency. CD14 is a monocyte/macrophage marker and CD3 is a T-cell marker.  
+- Finally the authors gated on live T-cells (the CD14\textsuperscript{lo}/CD3\textsuperscript{hi} population) with flowDensity, an automated gating program developed at the BC Cancer Research Agency. CD14 is a monocyte/macrophage marker and CD3 is a T-cell marker.  
 
 #### 2. Feature Extraction  
 Next, the authors moved to unsupervised learning with feature extraction.  This step is composed of three main parts.  
@@ -39,9 +42,9 @@ Next, the authors moved to unsupervised learning with feature extraction.  This 
 - First, flowDensity was used again to determine splits for 10 of the 16 features in the dataset (FSA-A, SSC-A, CD4, CD27, CD107-A, CD154, CCR7, CD8, CD57, and CD45RO).  FlowDensity determines best split based on density distribution, and splits between peaks, as this figure illustrates.  
 ![Flow Density](flowdensity.png)  
 
-- In this step, they excluded FSC-H, CD3, and CD14, because they were already taken into account in preprocessing.  Additionally, IFNγ, TNFα, and IL-2 were removed to reduce computation time.  Though this sacrifices a great deal of information, these intracellular stains often don't have clear peaks, which makes automatic gating very difficult.  Next, the flowType dynamic programming algorithm was used to determine subsets based on these splits, identifying many cell populations that would not be manually identifiable.  In total, roughly 60,000 subsets were identified.  
+- In this step, they excluded FSC-H, CD3, and CD14, because they were already taken into account in preprocessing.  Additionally, IFN\(\gamma\), TNF\(\alpha\), and IL-2 were removed to reduce computation time.  Though this sacrifices a great deal of information, these intracellular stains often don't have clear peaks, which makes automatic gating very difficult.  Next, the flowType dynamic programming algorithm was used to determine subsets based on these splits, identifying many cell populations that would not be manually identifiable.  In total, roughly 60,000 subsets were identified.  
 
-- Finally, "features" of each subset were extracted--mean fluorescence intensity for each of the 13 immune markers (including IFNγ, TNFα, and IL-2), as well as the percentage of cells.  This left the authors with 2.5 million features per patient (3^10 * 14) x 3 (three groups - stimulated, unstimulated, and difference).  
+- Finally, "features" of each subset were extracted--mean fluorescence intensity for each of the 13 immune markers (including IFN\(\gamma\), TNF\(\alpha\), and IL-2), as well as the percentage of cells.  This left the authors with 2.5 million features per patient (3\textsuperscript{10} x 14) x 3 (three groups - stimulated, unstimulated, and difference).  
 ![Defined Subsets](definedsubsets.png)
 
 #### 3. Feature Selection.  
@@ -77,9 +80,9 @@ In this figure, I will draw your attention to the large spread of points in all 
 It is likely that overfitting is the main culprit to the poor scores on the test dataset.  The authors suggest that the features selected in training the model are specific to the training population, and are therefore poor predictors overall. 
 
 ### Critique
-Interestingly, the model predicts that some of the best features for predicting survival time are "negative" features. Looking at **Table 3**, you can see that the vast majority of the subset identifiers are negative populations, with 2/13 of the subsets being entirely composed of negative markers.  This is worrisome, as it leads me to believe that there *are* other markers not studied here that better identify these populations.  Just off the top of my head, the exclusion of IFN-γ, IL-2, and TNFα in the feature extraction step could contribute to this problem.  
+Interestingly, the model predicts that some of the best features for predicting survival time are "negative" features. Looking at **Table 3**, you can see that the vast majority of the subset identifiers are negative populations, with 2/13 of the subsets being entirely composed of negative markers.  This is worrisome, as it leads me to believe that there *are* other markers not studied here that better identify these populations.  Just off the top of my head, the exclusion of IFN-\(\gamma\), IL-2, and TNF\(\alpha\) in the feature extraction step could contribute to this problem.  
 
-Continuing with that thought, the exclusion of IFN-γ, IL-2, and TNFα in Feature Extraction is particularly worrysome due to their functional importance.  IL-2 especially, which is a T cell growth factor, and of importance to T<sub>regs</sub>, may play a role in HIV. In order to reduce the computation time necessary when including these cytokines, the authors could explore novel algorithms for automatic gating aside from flowDensity, which may have better luck with distributions that are not cleanly bimodal.  Though these cytokines were still used in feature selection, none of them appear in the top 13 list used in the Cox PH & Random Survival Forests models.  From an experimental design viewpoint, it would be interesting to repeat this study with new markers/stains.  
+Continuing with that thought, the exclusion of IFN-\(\gamma\), IL-2, and TNF\(\alpha\) in Feature Extraction is particularly worrysome due to their functional importance.  IL-2 especially, which is a T cell growth factor, and of importance to T\textsubscript{regs}, may play a role in HIV. In order to reduce the computation time necessary when including these cytokines, the authors could explore novel algorithms for automatic gating aside from flowDensity, which may have better luck with distributions that are not cleanly bimodal.  Though these cytokines were still used in feature selection, none of them appear in the top 13 list used in the Cox PH & Random Survival Forests models.  From an experimental design viewpoint, it would be interesting to repeat this study with new markers/stains.  
 
 Another weakness of this algorithm is its reliance on the Cox proportional-hazards model, which has its drawbacks.  Particularly, the Cox PH model assumes that the hazard ratio for any given patient does not change over time.  I believe this particular assumption is often untrue, as hazards may often diverge due to environmental/lifestyle factors, or simply due to change in treatment--which happens often with HIV patients.  
 
